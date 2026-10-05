@@ -20,3 +20,9 @@ Empty app, built and deployed by CI on day 1, so the public-link path is proven 
 - 2026-10-05 — Spec: `context/spec/001-project-skeleton-first-deploy/functional-spec.md` → In Progress.
 - 2026-10-05 — Stage 2 review (codex): 4 findings, all accepted → `reviews/TRIAGE.md`. Scope addition by user: Conventional Commits, enforced with commitlint + husky + CI (spec §2.6).
 - 2026-10-05 — Bootstrap (D2/D3): lead staged 117 files (harness + docs, no app code) and created public repo https://github.com/dustyo-O/green-api-whatsapp-chat (remote `origin`, nothing pushed). User makes the initial commit on `main` and pushes.
+- 2026-10-05 — Stage 3 done (tech + 2nd codex review, 5 findings triaged + tasks). Plan:
+  - Slice 1: Placeholder page live on GitHub Pages (PR #1)
+  - Slice 2: Commit messages enforced locally and on every PR
+  - Slice 3: README — run locally in three commands
+  - Slice 4: Feature Testing & Regression (PR #2 = slices 2–4)
+  - Slice 5: Delivery guarantees proven on the live site
