@@ -21,3 +21,5 @@ export function formatVersion({ commit, builtAt }: BuildInfo): string {
   // Plain string slicing: no locale or timezone formatting, so every visitor sees the same UTC label.
   return `${commit} · ${builtAt.slice(0, 16).replace("T", " ")} UTC`;
 }
+
+export const broken: number = "not a number";
