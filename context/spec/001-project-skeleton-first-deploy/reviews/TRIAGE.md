@@ -27,3 +27,10 @@ The reviewer saw the whole spec but only the slice-1 diff: `second-opinion.sh co
 |---|---|---|---|---|
 | F1 | major | deferred: Slice 2 (PR #2) | Commit-message enforcement is tasks.md Slice 2. PR #1 is slice 1 only by design (tasks.md header: two PRs). Re-reviewed with PR #2. | — |
 | F2 | major | deferred: Slice 3 (PR #2) | The README is tasks.md Slice 3, under the same plan. Re-reviewed with PR #2. | — |
+
+## Code review 2026-10-05 — code-codex-20261005-1937.md (codex · effort low · PR #2 = slices 2–4) — verdict: SHIP WITH FIXES
+
+| # | severity | verdict | rationale | applied in |
+|---|---|---|---|---|
+| F1 | major | accepted | Spec compliance (§2.2): an older re-run can replace the pending tip run; the tip guard then skips everywhere and the tip never deploys. Fix: a native queueing setting if GitHub has one, else a self-healing dispatch from the superseded path; plus three-run scenario tests. | tasks.md Slice F1; functional §2.2 (clarified) |
+| F2 | minor | accepted in part; rejected: required scope | Ignores: accepted. Default ignores pass `fixup!`/`squash!`/`Revert "…"` messages that would reach `main` via merge commits, so ignores are limited to merge messages. Required scope: rejected, because CLAUDE.md → Commits (user-approved) says "Omit it when nothing fits" and existing commits (`ci: …`, `docs: …`, the user's `chore: bootstrap …`) rely on it. Spec §2.6 amended to "optionally the affected part". | tasks.md Slice F1; functional §2.6 |
