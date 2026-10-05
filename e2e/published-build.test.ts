@@ -131,7 +131,8 @@ describe("the page CI publishes for a commit on main", () => {
     const hasLiteral = (text: string) =>
       ['"', "'", "`"].some((quote) => code.includes(`${quote}${text}${quote}`));
     expect(code.includes("GREEN-API WhatsApp Chat"), "app name").toBe(true);
-    expect(code.includes("early skeleton"), "skeleton note").toBe(true);
+    // Spec 002 §2.7: the sign-in screen replaced the skeleton note.
+    expect(code.includes("Указать API URL вручную"), "sign-in form").toBe(true);
     expect(hasLiteral(SHORT_SHA), `short code ${SHORT_SHA}`).toBe(true);
     expect(hasLiteral(builtAt), `build time ${builtAt}`).toBe(true);
   });

@@ -39,7 +39,7 @@ describe("index.html + main.tsx", () => {
     expect(
       screen.getByRole("heading", { name: "GREEN-API WhatsApp Chat" }),
     ).toBeDefined();
-    expect(screen.getByText(/early skeleton/i)).toBeDefined();
+    expect(screen.getByRole("button", { name: "Войти" })).toBeDefined();
     // Whatever this run injected (null locally, GITHUB_SHA in CI), the page shows exactly that.
     expect(screen.getByText(formatVersion(BUILD_INFO))).toBeDefined();
   });
