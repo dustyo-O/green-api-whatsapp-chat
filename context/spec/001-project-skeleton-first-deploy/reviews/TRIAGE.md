@@ -18,3 +18,12 @@
 | F3 | major | accepted | "Every accepted change visible after 10 min" contradicted superseded changes; and the cache lifetime starts when the page is cached, not when the change is accepted. Freshness now applies to the latest change only, measured from its run finishing, with normal navigation. | functional §2.2 requirement + c1; tech §2.4, risk 8, §4 table |
 | F4 | minor | accepted | `engines ^22.22.2` contradicted "Node.js 22"; the "still works" claim was unproven. | functional §2.5 requirement + c1/c3; tech risk 7, §4 table |
 | F5 | minor | accepted | §2.6 promised refusal everywhere, while the design leaves squash titles and `main` pushes unchecked (Q2). The enforcement boundary and exception are now stated. | functional §2.6 requirement + c2, §3 In-Scope; tech §2.6 |
+
+## Code review 2026-10-05 — code-codex-20261005-1808.md (codex · effort low · PR #1 = slice 1) — verdict: DO NOT SHIP
+
+The reviewer saw the whole spec but only the slice-1 diff: `second-opinion.sh code` gives it no slice scope (harness gap). Both findings are later slices of the two-PR plan.
+
+| # | severity | verdict | rationale | applied in |
+|---|---|---|---|---|
+| F1 | major | deferred: Slice 2 (PR #2) | Commit-message enforcement is tasks.md Slice 2. PR #1 is slice 1 only by design (tasks.md header: two PRs). Re-reviewed with PR #2. | — |
+| F2 | major | deferred: Slice 3 (PR #2) | The README is tasks.md Slice 3, under the same plan. Re-reviewed with PR #2. | — |
