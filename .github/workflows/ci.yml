@@ -13,17 +13,21 @@ permissions:
   contents: read
 
 # Review F4 (spec 001, tech §2.7): this MUST stay at workflow level, covering check + deploy.
-# All `main` runs share one group and run strictly in push order; a newer run only ever cancels a
-# *pending* older one, never the running one, so an older commit can never publish over a newer one.
-# Job-level concurrency on `deploy` alone would let a slow older `check` deploy after a newer one.
-# Never set cancel-in-progress for `main`; PR runs cancel their superseded runs.
+# All `main` runs share one group and run one at a time; job-level concurrency on `deploy` alone
+# would let a slow older `check` deploy after a newer one.
+# Code review F1: `queue: max` keeps every pending run (FIFO, up to 100) instead of the default
+# single slot, where a new run cancels the pending one. Without it, a re-run of an older `main` run
+# would cancel the pending run of the newest commit, and the tip guard would then stop every other
+# run from publishing, so the newest commit would never reach the page.
+# GitHub rejects `queue: max` together with `cancel-in-progress: true`, so no run in this group is
+# ever cancelled, PR runs included: a superseded PR run finishes before the next one starts.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  queue: max
 
 jobs:
   # Spec 001 tech §2.6: lint every commit in the PR's range. Pushes to `main` are not linted:
-  # their commits were linted in the PR, and commitlint's default ignores skip merge commits.
+  # their commits were linted in the PR, and commitlint.config.js ignores only merge messages.
   commitlint:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest

@@ -88,7 +88,7 @@ describe("the deploy job's tip guard (functional §2.2 c4)", () => {
     dir.remove();
   });
 
-  function guard(remote: { tip?: string; fail?: boolean }) {
+  function guard(remote: { tip?: string; fail?: boolean }, sha = SHA) {
     const outputFile = join(dir.path, "github-output");
     writeFileSync(outputFile, "");
     // GitHub's default `run` shell on Linux runners.
@@ -99,7 +99,7 @@ describe("the deploy job's tip guard (functional §2.2 c4)", () => {
         cwd: dir.path,
         env: machineEnv({
           PATH: `${dir.path}:${process.env.PATH ?? ""}`,
-          GITHUB_SHA: SHA,
+          GITHUB_SHA: sha,
           GITHUB_OUTPUT: outputFile,
           REPO_URL,
           FAKE_GIT_ARGS: join(dir.path, "git-args"),
@@ -150,6 +150,114 @@ describe("the deploy job's tip guard (functional §2.2 c4)", () => {
     expect(result.status).not.toBe(0);
     expect(result.githubOutput).toBe("");
   });
+
+  // Code review F1. GitHub's concurrency rules, as documented for the `concurrency` block
+  // (workflow-syntax → concurrency): one run in progress per group; with `queue: single` (the
+  // default) a new run cancels the pending one and takes its place, with `queue: max` up to 100 runs
+  // wait and start first-in-first-out. The block is read from ci.yml, and every run that reaches
+  // `deploy` goes through the real tip guard above.
+  describe("main runs queued by the workflow's concurrency group (functional §2.2)", () => {
+    const OLD = "a".repeat(40);
+    const A = "b".repeat(40);
+    const B = "c".repeat(40);
+    const C = "d".repeat(40);
+
+    function concurrency() {
+      const block = section(LINES, "concurrency", 0);
+      const value = (key: string) =>
+        block
+          .find((line) => line.trimStart().startsWith(`${key}:`))
+          ?.split(/:\s*/)
+          .slice(1)
+          .join(":")
+          .trim();
+      const cancel = value("cancel-in-progress") ?? "false";
+      const event = /^\$\{\{ github\.event_name == '(\w+)' \}\}$/.exec(
+        cancel,
+      )?.[1];
+      if (!["true", "false"].includes(cancel) && event === undefined) {
+        throw new Error(`can't evaluate cancel-in-progress: ${cancel}`);
+      }
+      const pushCancels = cancel === "true" || event === "push";
+      return { queue: value("queue") ?? "single", pushCancels };
+    }
+
+    /** Pushes to and re-runs on `main`, then lets every run finish. */
+    function main(published: string) {
+      const { queue, pushCancels } = concurrency();
+      const cancelled: string[] = [];
+      const pending: string[] = [];
+      let running: string | undefined;
+      let tip = published;
+
+      function join(sha: string) {
+        if (running === undefined) {
+          running = sha;
+          return;
+        }
+        if (pushCancels) {
+          cancelled.push(running);
+          running = sha;
+          return;
+        }
+        if (queue === "single") cancelled.push(...pending.splice(0));
+        if (pending.length === 100) cancelled.push(sha);
+        else pending.push(sha);
+      }
+
+      const timeline = {
+        push(sha: string) {
+          tip = sha;
+          join(sha);
+          return timeline;
+        },
+        rerun(sha: string) {
+          join(sha);
+          return timeline;
+        },
+        finishAll() {
+          while (running !== undefined) {
+            const result = guard({ tip }, running);
+            expect(result.status, result.output).toBe(0);
+            if (result.githubOutput === "publish=true\n") published = running;
+            running = pending.shift();
+          }
+          return { published, cancelled };
+        },
+      };
+      return timeline;
+    }
+
+    // @regression — review F1: an older re-run never leaves the newest commit unpublished
+    it("publishes the newest commit when an older run is re-run while its run is waiting", () => {
+      // A running, B (the tip) waiting, then the author re-runs an older commit's run.
+      const result = main(OLD).push(A).push(B).rerun(OLD).finishAll();
+
+      expect(result.published).toBe(B);
+      expect(result.cancelled).toEqual([]);
+    });
+
+    // @regression — review F1
+    it("publishes the newest commit when the older re-run was already waiting before it was pushed", () => {
+      const result = main(OLD).push(A).rerun(OLD).push(B).finishAll();
+
+      expect(result.published).toBe(B);
+    });
+
+    // @regression — functional §2.2 c3
+    it("ends on the later of changes accepted shortly one after another", () => {
+      expect(main(OLD).push(A).push(B).finishAll().published).toBe(B);
+      expect(main(OLD).push(A).push(B).push(C).finishAll().published).toBe(C);
+    });
+
+    // @regression — functional §2.2 c4
+    it("keeps the newer version when an older run is re-run after everything finished", () => {
+      const result = main(OLD).push(A).push(B).finishAll();
+
+      expect(result.published).toBe(B);
+      expect(main(B).rerun(A).finishAll().published).toBe(B);
+    });
+  });
 });
 
 describe("the CI workflow", () => {
@@ -178,14 +286,13 @@ describe("the CI workflow", () => {
     );
   });
 
-  // @regression — functional §2.2 c3 (review F4): must stay workflow-level, never cancel a running main run
-  it("serialises main runs at workflow level so an older run can't publish after a newer one", () => {
+  // @regression — functional §2.2 c3 (review F4, code review F1): must stay workflow-level and
+  // keep every waiting main run, so neither a newer nor an older run ever drops the newest commit's
+  it("serialises main runs at workflow level and queues them instead of cancelling any", () => {
     expect(text(section(LINES, "concurrency", 0))).toBe(
-      [
-        "concurrency:",
-        "  group: ci-${{ github.ref }}",
-        "  cancel-in-progress: ${{ github.event_name == 'pull_request' }}",
-      ].join("\n"),
+      ["concurrency:", "  group: ci-${{ github.ref }}", "  queue: max"].join(
+        "\n",
+      ),
     );
     expect(text(section(LINES, "jobs", 0))).not.toMatch(/^\s+concurrency:/m);
   });
