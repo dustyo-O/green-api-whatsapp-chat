@@ -23,7 +23,7 @@ _A static, client-only React single-page app that talks to GREEN-API directly fr
   - **Contract:** none. The GREEN-API payload types are checked against the documented examples in unit tests.
   - **Manual acceptance:** one real-instance run of the full journey before submission (needs a real phone, so it can't be automated).
 - **Code Quality:** ESLint (typescript-eslint, react-hooks) and Prettier. Prettier also runs from the harness `format.sh` PostToolUse hook.
-- **Commit Messages:** Conventional Commits, enforced by commitlint (`@commitlint/config-conventional`) through a husky `commit-msg` hook locally and a commit-lint step over each PR's commits in CI. Conventions are in `CLAUDE.md` → "Commits".
+- **Commit Messages:** Conventional Commits, enforced by commitlint (`@commitlint/config-conventional`, `defaultIgnores: false`, ignoring only git's `Merge branch '…'` and GitHub's `Merge pull request #…` messages) through a husky `commit-msg` hook locally and a `commitlint` job over each PR's commit range in CI. Scope is optional; reverts use `revert: …`, not GitHub's `Revert "…"`. Conventions are in `CLAUDE.md` → "Commits".
 
 ---
 
@@ -45,9 +45,12 @@ _A static, client-only React single-page app that talks to GREEN-API directly fr
 ## 3. Infrastructure & Deployment
 
 - **Hosting:** **GitHub Pages** (static). Vite `base` is set to `/<repo-name>/`.
-- **CI/CD:** GitHub Actions. On every push and PR: lint → typecheck → test → build. On `main`: deploy with `actions/upload-pages-artifact` + `actions/deploy-pages`.
-- **First deploy early:** a "hello world" deploy happens in **Phase 1, day 1**, so the live-site path (Pages base path and CORS from `*.github.io`) is checked before any features are built.
-- **Local Run:** `git clone` → `npm ci` → `npm run dev` (≤ 3 commands, per the success metrics).
+- **CI/CD:** GitHub Actions, one workflow `.github/workflows/ci.yml` (spec 001):
+  - `commitlint` (PRs only) lints the PR's commit range; `check` (every PR and every push to `main`) runs `npm run check` = format → lint → typecheck → test → build, the same command as the harness lane gate, and on `main` uploads `dist` as the Pages artifact; `deploy` (`main` only, `needs: check`) publishes exactly that artifact with `actions/deploy-pages`.
+  - **Ordering:** workflow-level `concurrency: { group: ci-${{ github.ref }}, queue: max }` runs `main` strictly one at a time in FIFO order without replacing waiting runs (GitHub refuses `queue: max` with `cancel-in-progress`, so PR runs aren't cancelled either). A **tip guard** as `deploy`'s first step publishes only if the run's commit is still the tip of `main` (`git ls-remote`); otherwise it logs `superseded by <tip>; not publishing`. Together: an older run or a manual re-run never publishes over a newer commit, and never stops the newest one from publishing.
+  - A failed `check` skips `deploy`; a failed `deploy` leaves the previous Pages deployment live.
+- **First deploy:** done on day 1 (spec 001, 2026-10-05). The live-site path is proven: Pages base path, the slash-less `301`, and CORS from `https://dustyo-o.github.io` (GET plus preflighted POST/DELETE, Chromium and WebKit).
+- **Local Run:** `git clone … && cd green-api-whatsapp-chat` → `npm ci` → `npm run dev` (3 README lines, per the success metrics). **Node floor: 22.22.2** (`.nvmrc` `22`, `engines.node ^22.22.2`, set by jsdom 30 / eslint 10); other versions get npm's `EBADENGINE` warning.
 - **Environments:** local dev and production (Pages). No staging, and no secrets: credentials come from the user at runtime.
 - **Browser Support:** current **Chrome and Safari** are verified (user decision 2026-10-05: the brief names no browsers). Other modern browsers are best-effort. The tab coordination below needs Web Locks and BroadcastChannel, which both support.
 
@@ -58,6 +61,7 @@ _A static, client-only React single-page app that talks to GREEN-API directly fr
 - **Messaging Provider:** **GREEN-API (WhatsApp)**. Called directly from the browser; verified on 2026-10-05 that it answers CORS with `Access-Control-Allow-Origin: *` and allows `Content-Type`, so no proxy is needed.
 - **Base URL:** `{apiUrl}/waInstance{idInstance}/{method}/{apiTokenInstance}`. `apiUrl` is **per instance** and issued in the GREEN-API console (for example `https://7103.api.greenapi.com`). GREEN-API documents no rule for deriving it from `idInstance`.
 - **How the login gets `apiUrl` (decided 2026-10-05):** the login form's **last field is "API URL"**. By default it is **disabled and auto-filled from `idInstance`**, updating live as the user types: `https://{first 4 digits of idInstance}.api.greenapi.com`, empty until 4 digits are entered. A **"Custom API URL" checkbox** makes the field editable so the user can paste the console value. Unticking it puts the derived value back. Whatever the field shows is exactly what the app uses; there is no hidden fallback host. A failed login whose error suggests the wrong host hints "check the API URL in your GREEN-API console". The derived pattern is to be confirmed against the author's real instance on day 1.
+- **Wrong `apiUrl` looks like a network error (verified 2026-10-05):** GREEN-API answers a host/instance mismatch (e.g. `7103.api.greenapi.com` with a `1101…` id) with an nginx `403` that carries **no** `Access-Control-Allow-Origin`, and a non-existent derived host (e.g. `1101.api.greenapi.com`) doesn't resolve. In the browser both surface as `TypeError: Failed to fetch` — never an HTTP status — and are indistinguishable from being offline. The login must therefore treat a fetch-level failure as "couldn't reach this API URL — check the API URL in your GREEN-API console and your connection", not only 4xx responses.
 - **Methods Used:**
   - `getStateInstance`: at login and on every reload. `authorized` is required. `notAuthorized`, `blocked`, `sleepMode`, `starting` and `suspended` each map to a specific message for the user.
   - `getSettings`: at login, the readiness check. It requires `webhookUrl` to be empty and `incomingWebhook` to be `"yes"`; otherwise the user is told what to change in the console.
@@ -67,7 +71,7 @@ _A static, client-only React single-page app that talks to GREEN-API directly fr
   - `getChatHistory`: Phase 4 stretch only.
 - **Notification Handling:** only `incomingMessageReceived` with `typeMessage` of `textMessage` or `extendedTextMessage`, coming from a personal chat (`@c.us`), is turned into a message. Every other type (outgoing, statuses, groups `@g.us`, media and so on) is **deleted and skipped**, so the FIFO queue never stalls. Queue entries expire after 24 h on GREEN-API's side.
 - **Single Poller (Tab Coordination):** the **Web Locks API** (`navigator.locks.request('greenapi-poller:<idInstance>')`) picks the one active tab that polls and sends. **BroadcastChannel** carries "take over here" and logout between tabs, and localStorage `storage` events keep the passive tabs' view of the data current.
-- **Rate Limits & Errors:** HTTP 429 → back off and retry polling. Network failure → the "connection lost" state, with exponential backoff up to about 30 s, resuming automatically. 401/403 → "credentials invalid / instance not authorized" banner.
+- **Rate Limits & Errors:** HTTP 429 → back off and retry polling. Network failure → the "connection lost" state, with exponential backoff up to about 30 s, resuming automatically. 401/403 → "credentials invalid / instance not authorized" banner. A fetch-level `TypeError` is ambiguous (offline, wrong `apiUrl`, or a CORS-less error page): at login it maps to the "check the API URL" message; while chatting it maps to the "connection lost" state.
 
 ---
 

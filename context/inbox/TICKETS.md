@@ -30,3 +30,18 @@ Empty app, built and deployed by CI on day 1, so the public-link path is proven 
 - 2026-10-05 — PR #1 merged (`fd68c39`); site live at https://dustyo-o.github.io/green-api-whatsapp-chat/ after the deliberate first-deploy failure (§2.4 c3) + Pages enable + rerun. CORS from the live origin: 6/6 PASS (Chromium + WebKit).
 - 2026-10-05 — Stages 4–5 done: PR #2 merged (`3fe0e68`, code re-review SHIP); slice 5 live checks all passed (PRs #3–#6, re-run of an old run). Live label `914d84b`. Next: stage 6 `/awos:verify 001`.
 - 2026-10-05 — Stage 6 `/awos:verify 001`: 19/19 acceptance criteria verified (screenshots `docs/screenshots/001-*.png`, look-and-feel confirmed by the user); spec + tech → Completed; roadmap item ticked → **Done**.
+
+---
+
+## TKT-2 — Sign-in & session
+
+- **type:** feature · **state:** In Progress · **created:** 2026-10-05
+- **roadmap:** Phase 1 → "Sign-In & Session"
+
+**Description**
+
+Credentials login with readiness check (idInstance, apiTokenInstance, API URL derived from idInstance with an override checkbox); only let the user in once the instance can actually receive replies; remembered session across reloads; logout.
+
+**Comments**
+
+- 2026-10-05 — `/harness:feature` started; stage 0 (grill) running. Carried in from spec 001: a wrong apiUrl/idInstance pair surfaces in the browser as `TypeError: Failed to fetch` (CORS-less 403 or unresolvable host), not as an HTTP status.
