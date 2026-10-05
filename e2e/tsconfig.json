@@ -1,0 +1,20 @@
+{
+  // Not referenced from the root tsconfig.json: these Node-side acceptance tests only need
+  // a project for type-aware linting (eslint's projectService picks the nearest tsconfig).
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    "types": ["node"],
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true
+  },
+  "include": ["."]
+}
