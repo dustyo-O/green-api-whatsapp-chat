@@ -115,7 +115,7 @@ Deliberately left out: `@testing-library/jest-dom` (arrives with the first real 
 - **Without `.git`** (zip download): husky 9 prints `.git can't be found` and exits 0, so `npm ci` doesn't break. **In CI:** workflow env `HUSKY=0`, so hooks are never installed on runners.
 - **Lane worktrees:** `.husky/_` is gitignored, so a fresh worktree enforces the hook only after `npm ci`. Lanes run `npm ci` first.
 - **CI (PRs only):** job `commitlint`. Checkout with `fetch-depth: 0`, then `npm run commitlint -- --from <base.sha> --to <head.sha> --verbose`, with the SHAs passed through `env:`, not interpolated in `run:`. `--verbose` names each failing message (functional §2.6 c3).
-- **Push to `main`:** not linted. PR commits were already linted, and the default `ignores` skip `Merge branch …` / `Merge pull request …`.
+- **Push to `main`:** not linted. PR commits were already linted. `commitlint.config.js` sets `defaultIgnores: false` and ignores **only** git's `Merge branch '…'` and GitHub's `Merge pull request #… from …` first lines, so `fixup!`/`squash!`/`Revert "…"` messages are refused (code review 2 F2). Reverts use `revert: …`.
 - **Enforcement boundary (review 2 F5, now stated in functional §2.6):** local hook once `npm ci` has run + CI over each PR's commit range. **Accepted gap (Q2):** a multi-commit squash merge takes the unlinted PR title; squash stays enabled and "don't squash multi-commit PRs" is a convention only (CLAUDE.md → Commits).
 
 ### 2.7. CI/CD workflow: `.github/workflows/ci.yml`
@@ -132,11 +132,11 @@ Deliberately left out: `@testing-library/jest-dom` (arrives with the first real 
 
   The deployed bytes are exactly the bytes that passed the gate, because nothing is rebuilt in `deploy` (F2 is structural). `actions/configure-pages` is not used: `base` is hard-coded, and it can't enable Pages with `GITHUB_TOKEN` anyway.
 
-- **Concurrency (F4), at workflow level:** group `ci-${{ github.ref }}`, `cancel-in-progress` only for `pull_request`.
-  - All `main` runs share one group. GitHub keeps one running and one pending run; a new run cancels the *pending* one, never the running one.
+- **Concurrency (F4; code review 2 F1), at workflow level:** group `ci-${{ github.ref }}`, **`queue: max`** (GitHub's FIFO concurrency queue, up to 100 waiting runs, nothing replaced or cancelled). GitHub refuses `queue: max` together with `cancel-in-progress: true`, so PR runs no longer cancel superseded runs either: they finish in order (accepted, a few extra CI minutes).
+  - All `main` runs share one group and run strictly one at a time, in the order they started waiting. A re-run of an older run joins the end of the queue; it can no longer replace the pending tip run (the code-review-2 F1 scenario), and the tip guard then makes it skip publishing.
   - Because the group covers the whole run (check + deploy), `main` runs execute strictly in push order. A run is only ever dropped by a **newer** run, so the page can never go backwards.
   - Job-level concurrency on `deploy` alone would **not** guarantee this: a slow older `check` could deploy after a newer one. `ci.yml` carries a comment citing F4 so nobody moves it.
-  - Accepted edge: with A running, B pending and C queued, B is cancelled. If C then fails, the page stays on A, which is still not backwards.
+  - Accepted edge: if the tip's own `check` fails, the page stays on the last published commit, which may be older than an intermediate commit that passed but was skipped by the tip guard. That is not backwards, and §2.4 c1 describes it. (The earlier "B is cancelled" edge no longer exists with `queue: max`.)
 - **Tip guard (review 2 F1), first step of `deploy`:** concurrency alone does not cover a manual **re-run of an older `main` run**, and GitHub orders queued runs by when they start waiting. So `deploy` compares `GITHUB_SHA` with the current tip of `main` (`git ls-remote origin refs/heads/main`, no checkout needed). If they differ, it skips `deploy-pages` with a `::notice::` ("superseded by <tip>; not publishing") and the job ends green: a newer run owns publishing. Only the commit that is the tip at deploy time can publish, so the page can never move to an older commit. Accepted edge: if the tip's own check fails, the page stays on the last published commit, which may be older than an intermediate commit that passed but was skipped. That is not backwards, and §2.4 c1 already describes it.
 - **Failure behaviour (functional §2.4):**
   - `check` red → `deploy` skipped, run red, page unchanged.
