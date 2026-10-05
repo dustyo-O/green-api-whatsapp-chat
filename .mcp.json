@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "linear": {
+      "type": "http",
+      "url": "https://mcp.linear.app/mcp"
+    },
+    "awos-recruitment": {
+      "type": "http",
+      "url": "https://recruitment.awos.provectus.pro/mcp"
+    }
+  }
+}

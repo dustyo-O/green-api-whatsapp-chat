@@ -1,0 +1,71 @@
+{
+  "extraKnownMarketplaces": {
+    "awos-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "provectus/awos"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "awos@awos-marketplace": true
+  },
+  "permissions": {
+    "allow": [
+      "Bash(bin/harness/*)",
+      "Bash(gh pr:*)",
+      "Bash(git add:*)",
+      "Bash(git checkout -b:*)",
+      "Bash(git commit:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git merge:*)",
+      "Bash(git status:*)",
+      "Bash(git switch:*)",
+      "Bash(git worktree:*)",
+      "Bash(herdr:*)",
+      "Bash(just:*)",
+      "Bash(npm run:*)",
+      "Bash(npm test:*)",
+      "Bash(npx prettier:*)",
+      "Bash(terraform fmt:*)",
+      "Bash(terraform plan:*)",
+      "Bash(terraform validate:*)",
+      "Bash(uv run pytest:*)",
+      "Bash(uv run ruff:*)"
+    ],
+    "deny": [
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(rm -rf /:*)",
+      "Read(./**/.env)",
+      "Read(./.env)",
+      "Read(./infra/**/*.tfstate)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/format.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "enableAllProjectMcpServers": true
+}

@@ -1,0 +1,3 @@
+
+# harness: per-run swarm state (briefs, pane ids, logs)
+context/spec/*/lanes/
