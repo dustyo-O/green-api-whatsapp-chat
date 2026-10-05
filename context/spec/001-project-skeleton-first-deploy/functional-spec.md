@@ -24,7 +24,7 @@ This change proves both paths on day 1, before any chat features exist. There wi
 - The project has a public page at **https://dustyo-o.github.io/green-api-whatsapp-chat/**. It shows the app name ("GREEN-API WhatsApp Chat"), a short note that this is an early skeleton and the chat is not available yet, and a **version label** made of a short code identifying the exact version being shown and the date and time it was built.
   - **Acceptance Criteria:**
     - [ ] When a visitor opens the public address, then they see the app name, the skeleton note, a short version code and a build date and time.
-    - [ ] When a visitor opens the public address in current Chrome, Firefox, Safari or Edge, then the page content is visible and never blank.
+    - [ ] When a visitor opens the public address in current Chrome or Safari, then the page content is visible and never blank.
     - [ ] When a visitor opens the public address without the trailing slash (`…/green-api-whatsapp-chat`), then they still end up on the same page with the same content.
 
 ### 2.2. The public page always shows the latest accepted version
@@ -109,4 +109,5 @@ This change proves both paths on day 1, before any chat features exist. There wi
 _Dated amendments made after the spec was first written — typically by `/awos:spec` in Update Mode when a bug fix changed documented behavior. Each entry records the date, the source reference (bug id or fix description), and what behavior changed and why. Leave empty until the first amendment._
 
 - 2026-10-05 — user decision after review `spec-codex-20261005-1707` — added §2.6 (shared format for describing saved changes, i.e. Conventional Commits, enforced locally and in the automatic checks) and the matching in-scope line; the former §2.6 is now §2.7. Added after the stage-2 review, so the stage-3 review must cover it.
+- 2026-10-05 — user decision during slice 1 — §2.1 c2 narrowed to Chrome and Safari: the brief names no browsers; Firefox/Edge came from an architecture assumption, not a requirement.
 - 2026-10-05 — review `spec-codex-20261005-1750` (F1, F3–F5) — §2.2: older re-runs never republish (new criterion); freshness defined for the latest change, measured from its run finishing, normal navigation. §2.5: runtime floor Node.js 22.22.2. §2.6: enforcement limited to installed local tools and proposed-change checks, squash-title exception stated.

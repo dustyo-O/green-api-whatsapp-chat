@@ -49,7 +49,7 @@ _A static, client-only React single-page app that talks to GREEN-API directly fr
 - **First deploy early:** a "hello world" deploy happens in **Phase 1, day 1**, so the live-site path (Pages base path and CORS from `*.github.io`) is checked before any features are built.
 - **Local Run:** `git clone` → `npm ci` → `npm run dev` (≤ 3 commands, per the success metrics).
 - **Environments:** local dev and production (Pages). No staging, and no secrets: credentials come from the user at runtime.
-- **Browser Support:** current Chrome, Firefox, Safari and Edge. The tab coordination below needs Web Locks and BroadcastChannel, which are supported in all four.
+- **Browser Support:** current **Chrome and Safari** are verified (user decision 2026-10-05: the brief names no browsers). Other modern browsers are best-effort. The tab coordination below needs Web Locks and BroadcastChannel, which both support.
 
 ---
 

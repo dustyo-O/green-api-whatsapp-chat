@@ -37,7 +37,7 @@
   https://7103.api.greenapi.com DELETE (preflight)     PASS   401
   ```
   _Only console errors: the six expected 401s. Surprise: Playwright doesn't surface preflight `OPTIONS` as page requests, so "OPTIONS 200" wasn't observed directly; a failed preflight would have made POST/DELETE `FAIL`. §2.2 c1: plain `curl` (no `?t=`) at 16:58:28 UTC, ≥ 10 min after the run finished (~16:45:30) → `app-version` `fd68c39 2026-10-05T16:44:37.124Z` = tip `fd68c39` ✓.)_
-  - [ ] Open the live page in Firefox, Safari and Edge: content visible, never blank (functional §2.1 c2). Chrome is covered by the lead. **[User]** _(Partly covered 2026-10-05: Safari's engine (WebKit 26.6) checked by the lead in Playwright, content visible. Firefox and Edge still open for the user.)_
+  - [x] Open the live page in Firefox, Safari and Edge: content visible, never blank (functional §2.1 c2). Chrome is covered by the lead. **[User]** _(Partly covered 2026-10-05: Safari's engine (WebKit 26.6) checked by the lead in Playwright, content visible. Firefox and Edge still open for the user.)_ _(Done 2026-10-05: scope narrowed by the user to Chrome + Safari (the brief names no browsers; spec §2.1 c2 amended). Both verified by the lead: Chromium 153 + WebKit 26.6, content visible.)_
 
 - [ ] **Slice 2: Commit messages enforced locally and on every PR**
   - [ ] Add `husky` (`prepare: husky`), `.husky/commit-msg` (`npx --no -- commitlint --edit "$1"`), `commitlint.config.js` (extends config-conventional) and the `commitlint` script, per tech §2.6. Confirm `npm ci` still succeeds with `HUSKY=0` and in a copy without `.git`. **[Agent: react-frontend]**
