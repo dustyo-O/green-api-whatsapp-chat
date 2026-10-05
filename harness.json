@@ -23,6 +23,14 @@
         "./"
       ],
       "gate": "npm run check"
+    },
+    "testing-expert": {
+      "owns": [
+        "src/**/*.test.ts",
+        "src/**/*.test.tsx",
+        "e2e/"
+      ],
+      "gate": "npm run check"
     }
   },
   "commit_format": "<type>(<scope>): <what>\n\nRefs: {ticket} s{slice}/{lane}"
