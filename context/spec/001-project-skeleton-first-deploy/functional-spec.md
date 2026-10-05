@@ -1,7 +1,7 @@
 # Functional Specification: Project Skeleton & First Deploy
 
 - **Roadmap Item:** Phase 1 → Project Skeleton & First Deploy → Live "Hello" Page on GitHub Pages
-- **Status:** Draft
+- **Status:** Completed
 - **Author:** Alexander Shleyko
 - **Ticket:** TKT-1 · **Source:** `context/inbox/project-skeleton-first-deploy.md` (grill decisions D1–D9)
 
@@ -23,9 +23,9 @@ This change proves both paths on day 1, before any chat features exist. There wi
 
 - The project has a public page at **https://dustyo-o.github.io/green-api-whatsapp-chat/**. It shows the app name ("GREEN-API WhatsApp Chat"), a short note that this is an early skeleton and the chat is not available yet, and a **version label** made of a short code identifying the exact version being shown and the date and time it was built.
   - **Acceptance Criteria:**
-    - [ ] When a visitor opens the public address, then they see the app name, the skeleton note, a short version code and a build date and time.
-    - [ ] When a visitor opens the public address in current Chrome or Safari, then the page content is visible and never blank.
-    - [ ] When a visitor opens the public address without the trailing slash (`…/green-api-whatsapp-chat`), then they still end up on the same page with the same content.
+    - [x] When a visitor opens the public address, then they see the app name, the skeleton note, a short version code and a build date and time. _Verified 2026-10-05: live page in Chromium 153 shows name, note, `914d84b · 2026-10-05 17:56 UTC`; user confirmed look-and-feel. See docs/screenshots/001-live-chrome.png._
+    - [x] When a visitor opens the public address in current Chrome or Safari, then the page content is visible and never blank. _Verified 2026-10-05: Chromium 153 + WebKit 26.6 render the content; user confirmed. See docs/screenshots/001-live-chrome.png, docs/screenshots/001-live-safari.png._
+    - [x] When a visitor opens the public address without the trailing slash (`…/green-api-whatsapp-chat`), then they still end up on the same page with the same content. _Verified 2026-10-05: `curl -sI …/green-api-whatsapp-chat` → `301` `location: …/green-api-whatsapp-chat/`; browser lands on the same page. See docs/screenshots/001-live-no-trailing-slash.png._
 
 ### 2.2. The public page always shows the latest accepted version
 
@@ -33,47 +33,47 @@ This change proves both paths on day 1, before any chat features exist. There wi
 - The public page never goes back to an older version: if two changes are accepted shortly one after another, the page ends up showing the later one, even if the earlier one takes longer to process. Re-running the automatic run of an older change never puts that older version back on the page, and never stops the latest change from being published.
 - Freshness is about the **latest** accepted change only: once its automatic run on GitHub has finished, a visitor following a normal link (no forced refresh) sees it within 10 minutes. An earlier change that has since been superseded is not expected to stay visible.
   - **Acceptance Criteria:**
-    - [ ] Given the latest change accepted into the main version passed its automatic checks and no newer change has been accepted since, when a visitor opens the public address through a normal link (no forced refresh) 10 minutes or more after that change's automatic run finished, then the version code on the page matches the short code GitHub shows for that change.
-    - [ ] Given a change has been proposed but not yet accepted, when a visitor opens the public address, then the page still shows the version code of the previously accepted change.
-    - [ ] Given two changes are accepted into the main version less than a minute apart, when a visitor opens the public address once all automatic runs on GitHub have finished, then the version code on the page matches the later of the two changes.
-    - [ ] Given the page already shows a newer version, when the author re-runs the automatic run of an older accepted change and it finishes, then the page still shows the newer version code.
+    - [x] Given the latest change accepted into the main version passed its automatic checks and no newer change has been accepted since, when a visitor opens the public address through a normal link (no forced refresh) 10 minutes or more after that change's automatic run finished, then the version code on the page matches the short code GitHub shows for that change. _Verified 2026-10-05: plain `curl` at 18:38 UTC (run finished 17:56) → `app-version` `914d84b`, matches tip `914d84b`._
+    - [x] Given a change has been proposed but not yet accepted, when a visitor opens the public address, then the page still shows the version code of the previously accepted change. _Verified 2026-10-05: PR #1 run 37338428505 and PR #2 runs had `deploy` skipped; live label unchanged while PRs were open (tasks.md slice 1, 5)._
+    - [x] Given two changes are accepted into the main version less than a minute apart, when a visitor opens the public address once all automatic runs on GitHub have finished, then the version code on the page matches the later of the two changes. _Verified 2026-10-05: PRs #5/#6 merged 4 s apart; 632fa69 run logged "superseded by 914d84b; not publishing", 914d84b published; live = `914d84b`._
+    - [x] Given the page already shows a newer version, when the author re-runs the automatic run of an older accepted change and it finishes, then the page still shows the newer version code. _Verified 2026-10-05: re-ran run 37351219892 (3fe0e68, attempt 2): "superseded by 914d84b…; not publishing"; live stayed `914d84b`._
 
 ### 2.3. Automatic checks on every proposed change
 
 - Every proposed change, and every update to the main version, is checked automatically: code style, consistency of the code, the automated tests, and a full build of the page. The result is shown on the change's page on GitHub as passed or failed.
   - **Acceptance Criteria:**
-    - [ ] When someone proposes a change on GitHub, then an automatic check starts and its result (passed or failed) appears on that proposed change's page.
-    - [ ] Given a proposed change breaks the build, when the automatic check finishes, then it is shown as failed and the public page keeps showing the previous version.
+    - [x] When someone proposes a change on GitHub, then an automatic check starts and its result (passed or failed) appears on that proposed change's page. _Verified 2026-10-05: PR #1 and PR #2 show `check` (and `commitlint` from PR #2) results on the PR page (runs 37338428505, 37350859597)._
+    - [x] Given a proposed change breaks the build, when the automatic check finishes, then it is shown as failed and the public page keeps showing the previous version. _Verified 2026-10-05: PR #3 run 37351469084 → `check` failure (`TS2322`), deploy skipped, live label unchanged._
 
 ### 2.4. A failed check or update never takes the public page down
 
 - If an accepted change fails its automatic checks, it is not published at all. If updating the public page fails for any other reason, the visitor also keeps seeing the previous working version. Either failure shows up in the project's list of automatic runs on GitHub, so the author notices it.
   - **Acceptance Criteria:**
-    - [ ] Given a change accepted into the main version fails its automatic checks (for example, a test fails), when a visitor opens the public address after the run has finished, then they see the previous version's page with its previous version code.
-    - [ ] Given an accepted change whose update of the public page fails, when a visitor opens the public address, then they see the previous version's page with its previous version code, not an error or a blank page.
-    - [ ] Given an accepted change whose update of the public page fails, when the author opens the project's list of automatic runs on GitHub, then that run is marked as failed.
+    - [x] Given a change accepted into the main version fails its automatic checks (for example, a test fails), when a visitor opens the public address after the run has finished, then they see the previous version's page with its previous version code. _Verified 2026-10-05: PR #4 merged red → run 37351732766 `check` failure, `deploy` skipped; live label stayed `3fe0e68`._
+    - [x] Given an accepted change whose update of the public page fails, when a visitor opens the public address, then they see the previous version's page with its previous version code, not an error or a blank page. _Verified 2026-10-05 by design (review 2 F2, user decision a): Pages switches deployments atomically; first main run 37343109542 attempt 1 failed at deploy with nothing replaced; §2.4 c1 shows a red run leaves the page unchanged._
+    - [x] Given an accepted change whose update of the public page fails, when the author opens the project's list of automatic runs on GitHub, then that run is marked as failed. _Verified 2026-10-05: run 37343109542 attempt 1 → `failure` ("Ensure GitHub Pages has been enabled"), shown red in the Actions list._
 
 ### 2.5. Run locally in three commands
 
 - Anyone with the required runtime (**Node.js 22.22.2 or a newer 22.x**) can download the project and start it with at most three commands. Locally, the page looks the same as the public one, but its version label says **"local"** instead of a version code.
   - **Acceptance Criteria:**
-    - [ ] Given a computer with Node.js 22.22.2 (the oldest supported version) and no copy of the project, when the person runs the commands listed on the project page (at most three, starting with downloading the project), then the page opens in their browser at the local address those instructions print.
-    - [ ] When the page is opened locally, then the version label reads "local" in place of the version code, and everything else on the page matches the public page.
-    - [ ] Given a computer with a different major version of Node.js, or a 22.x older than 22.22.2, when the person installs the project, then they see a warning naming Node.js 22.22.2 or newer 22.x as the required version.
+    - [x] Given a computer with Node.js 22.22.2 (the oldest supported version) and no copy of the project, when the person runs the commands listed on the project page (at most three, starting with downloading the project), then the page opens in their browser at the local address those instructions print. _Verified 2026-10-05: Node v22.22.2, README's three lines from `main` → printed `http://localhost:5174/green-api-whatsapp-chat/`, HTTP 200._
+    - [x] When the page is opened locally, then the version label reads "local" in place of the version code, and everything else on the page matches the public page. _Verified 2026-10-05: local build shows "Version local", rest identical; user confirmed. See docs/screenshots/001-local-label.png._
+    - [x] Given a computer with a different major version of Node.js, or a 22.x older than 22.22.2, when the person installs the project, then they see a warning naming Node.js 22.22.2 or newer 22.x as the required version. _Verified 2026-10-05: Node 24 `npm ci` → `npm warn EBADENGINE Unsupported engine … required: { node: '^22.22.2' }`, continues._
 
 ### 2.6. Every saved change is described in the shared format
 
 - Each saved change carries a short description in the project's shared format: a kind of change (new feature, fix, documentation, build/checks setup, maintenance and so on), optionally the affected part of the app, and a one-line summary, optionally followed by the ticket it belongs to. This keeps the project history readable for reviewers. A description that doesn't follow the format is refused in two places: on the author's computer once the project's tools are installed, and in the automatic checks of every proposed change. **Known exception (author's decision):** when a proposed change with several saved changes is accepted by combining them into one ("squash"), the combined description is taken from the proposed change's title and is not checked; the team avoids that way of accepting multi-change proposals.
   - **Acceptance Criteria:**
-    - [ ] When the author saves a change described as "feat(app): show build version on placeholder page", then the change is saved.
-    - [ ] Given the project's tools are installed on the author's computer, when the author tries to save a change described as "updated stuff", then the save is refused with a message explaining the expected format.
-    - [ ] Given a proposed change on GitHub contains a saved change whose description doesn't follow the format, when the automatic check finishes, then it is shown as failed and names that description.
+    - [x] When the author saves a change described as "feat(app): show build version on placeholder page", then the change is saved. _Verified 2026-10-05: `git commit --allow-empty -m "feat(app): show build version on placeholder page"` accepted._
+    - [x] Given the project's tools are installed on the author's computer, when the author tries to save a change described as "updated stuff", then the save is refused with a message explaining the expected format. _Verified 2026-10-05: `git commit -m "updated stuff"` refused: `subject may not be empty`, `type may not be empty`._
+    - [x] Given a proposed change on GitHub contains a saved change whose description doesn't follow the format, when the automatic check finishes, then it is shown as failed and names that description. _Verified 2026-10-05: PR #3 `commitlint` failure naming **updated stuff**._
 
 ### 2.7. Project page explains the essentials
 
 - The project's front page on GitHub shows a one-line description of the project, the "run locally" commands (at most three), and a link to the public page.
   - **Acceptance Criteria:**
-    - [ ] When a reviewer opens the project's front page on GitHub, then they see a one-line description, a "Run locally" section with at most three commands, and a working link to the public page.
+    - [x] When a reviewer opens the project's front page on GitHub, then they see a one-line description, a "Run locally" section with at most three commands, and a working link to the public page. _Verified 2026-10-05: repo front page README: description, live link, Node requirement, three run lines; link returns 200._
 
 ---
 

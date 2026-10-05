@@ -6,7 +6,7 @@ It is NOT a copy-paste implementation guide.
 # Technical Specification: Project Skeleton & First Deploy
 
 - **Functional Specification:** [functional-spec.md](functional-spec.md)
-- **Status:** Draft
+- **Status:** Completed
 - **Author(s):** Alexander Shleyko (lead) · `react-frontend` consult: [consults/react-frontend-tech-skeleton-20261005-172551.md](consults/react-frontend-tech-skeleton-20261005-172551.md). The consult prototyped this setup and ran the full gate green on 2026-10-05; its verification evidence lives there.
 
 ---

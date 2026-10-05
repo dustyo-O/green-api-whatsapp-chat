@@ -10,8 +10,8 @@ _Hard deadline: submission by **2026-10-10** (5 days from 2026-10-05). Phases ar
 
 _The highest priority features that form the core foundation of the product: the brief's end-to-end flow (credentials → new chat → send → recipient replies → reply visible). Target: 2026-10-05 – 2026-10-07._
 
-- [ ] **Project Skeleton & First Deploy**
-  - [ ] **Live "Hello" Page on GitHub Pages:** An empty app, built and deployed by CI on day 1, so the public-link path is proven before any features depend on it.
+- [x] **Project Skeleton & First Deploy**
+  - [x] **Live "Hello" Page on GitHub Pages:** An empty app, built and deployed by CI on day 1, so the public-link path is proven before any features depend on it.
 
 - [ ] **Sign-In & Session**
   - [ ] **Credentials Login with Readiness Check:** Let the user enter `idInstance` and `apiTokenInstance` (the API URL is filled in from `idInstance`, with a checkbox to override it) and only let them in once the instance exists, is authorized in WhatsApp, and is ready to receive replies (incoming notifications on, no webhook set). Otherwise, say which check failed and what to change in the GREEN-API console, so a reviewer never ends up in a chat that can't receive.

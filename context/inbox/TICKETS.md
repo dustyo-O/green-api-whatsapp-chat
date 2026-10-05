@@ -6,7 +6,7 @@ _Local tracker: no tracker MCP is connected in this project yet (`harness.json �
 
 ## TKT-1 — Project skeleton & first deploy
 
-- **type:** feature · **state:** In Review · **created:** 2026-10-05
+- **type:** feature · **state:** Done · **created:** 2026-10-05
 - **roadmap:** Phase 1 → "Project Skeleton & First Deploy"
 
 **Description**
@@ -28,3 +28,5 @@ Empty app, built and deployed by CI on day 1, so the public-link path is proven 
   - Slice 5: Delivery guarantees proven on the live site
 - 2026-10-05 — PR #1 (slice 1): https://github.com/dustyo-O/green-api-whatsapp-chat/pull/1 → **In Review**. `check` green, `deploy` skipped on PR.
 - 2026-10-05 — PR #1 merged (`fd68c39`); site live at https://dustyo-o.github.io/green-api-whatsapp-chat/ after the deliberate first-deploy failure (§2.4 c3) + Pages enable + rerun. CORS from the live origin: 6/6 PASS (Chromium + WebKit).
+- 2026-10-05 — Stages 4–5 done: PR #2 merged (`3fe0e68`, code re-review SHIP); slice 5 live checks all passed (PRs #3–#6, re-run of an old run). Live label `914d84b`. Next: stage 6 `/awos:verify 001`.
+- 2026-10-05 — Stage 6 `/awos:verify 001`: 19/19 acceptance criteria verified (screenshots `docs/screenshots/001-*.png`, look-and-feel confirmed by the user); spec + tech → Completed; roadmap item ticked → **Done**.
