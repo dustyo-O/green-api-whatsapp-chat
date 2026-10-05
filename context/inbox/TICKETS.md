@@ -46,3 +46,4 @@ Credentials login with readiness check (idInstance, apiTokenInstance, API URL de
 
 - 2026-10-05 — `/harness:feature` started; stage 0 (grill) running. Carried in from spec 001: a wrong apiUrl/idInstance pair surfaces in the browser as `TypeError: Failed to fetch` (CORS-less 403 or unresolvable host), not as an HTTP status.
 - 2026-10-05 — grill done → `context/inbox/sign-in-session.md` (all recommended answers; user: avoid overengineering). D1 Russian UI · D2 lands on empty WhatsApp-style layout · D3 3 fields, derived API URL + override · D4 authorized + ready to receive, else stay with reason + "Check again" · D5 one message per instance state · D6 masked token · D7 simple validation · D8 wrong credentials vs can't-reach (combined) · D9 remembered, re-checked on reload · D10 one-click logout · D11 mocks only; one real-instance [User] check.
+- 2026-10-05 — Spec: `context/spec/002-sign-in-session/functional-spec.md` → In Progress.
