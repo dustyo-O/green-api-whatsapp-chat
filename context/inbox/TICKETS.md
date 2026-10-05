@@ -6,7 +6,7 @@ _Local tracker: no tracker MCP is connected in this project yet (`harness.json �
 
 ## TKT-1 — Project skeleton & first deploy
 
-- **type:** feature · **state:** In Progress · **created:** 2026-10-05
+- **type:** feature · **state:** In Review · **created:** 2026-10-05
 - **roadmap:** Phase 1 → "Project Skeleton & First Deploy"
 
 **Description**
@@ -26,3 +26,4 @@ Empty app, built and deployed by CI on day 1, so the public-link path is proven 
   - Slice 3: README — run locally in three commands
   - Slice 4: Feature Testing & Regression (PR #2 = slices 2–4)
   - Slice 5: Delivery guarantees proven on the live site
+- 2026-10-05 — PR #1 (slice 1): https://github.com/dustyo-O/green-api-whatsapp-chat/pull/1 → **In Review**. `check` green, `deploy` skipped on PR.
