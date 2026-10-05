@@ -1,0 +1,81 @@
+// Typed GREEN-API client: only the read-only calls the sign-in check needs.
+// The token is part of the URL path (GREEN-API requires it there); it never goes into logs or errors.
+
+export interface Credentials {
+  idInstance: string;
+  apiTokenInstance: string;
+  /** Normalized: scheme + host, no trailing `/`. */
+  apiUrl: string;
+}
+
+export type GreenApiErrorKind = "network" | "timeout" | "http" | "badBody";
+
+export class GreenApiError extends Error {
+  readonly kind: GreenApiErrorKind;
+  readonly status: number | null;
+
+  constructor(kind: GreenApiErrorKind, status: number | null = null) {
+    super(status === null ? kind : `${kind} ${String(status)}`);
+    this.name = "GreenApiError";
+    this.kind = kind;
+    this.status = status;
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+async function request(
+  { idInstance, apiTokenInstance, apiUrl }: Credentials,
+  method: string,
+  signal: AbortSignal,
+): Promise<unknown> {
+  let response: Response;
+  try {
+    response = await fetch(
+      `${apiUrl}/waInstance${idInstance}/${method}/${apiTokenInstance}`,
+      { signal },
+    );
+  } catch (error) {
+    if (signal.aborted) throw new GreenApiError("timeout");
+    // Offline, DNS, or a CORS-less answer (e.g. host/instance mismatch) all surface as TypeError.
+    if (error instanceof TypeError) throw new GreenApiError("network");
+    throw error;
+  }
+  // Status first: GREEN-API's 401/429 say application/json but have an empty body.
+  if (!response.ok) throw new GreenApiError("http", response.status);
+  try {
+    return (await response.json()) as unknown;
+  } catch {
+    if (signal.aborted) throw new GreenApiError("timeout");
+    throw new GreenApiError("badBody");
+  }
+}
+
+export async function getStateInstance(
+  credentials: Credentials,
+  signal: AbortSignal,
+): Promise<{ stateInstance: string }> {
+  const body = await request(credentials, "getStateInstance", signal);
+  if (!isRecord(body) || typeof body.stateInstance !== "string") {
+    throw new GreenApiError("badBody");
+  }
+  return { stateInstance: body.stateInstance };
+}
+
+export async function getSettings(
+  credentials: Credentials,
+  signal: AbortSignal,
+): Promise<{ webhookUrl: string; incomingWebhook: unknown }> {
+  const body = await request(credentials, "getSettings", signal);
+  // Strict on purpose (tech §2.2): a missing or non-string webhookUrl is not "no webhook".
+  if (
+    !isRecord(body) ||
+    typeof body.webhookUrl !== "string" ||
+    !("incomingWebhook" in body)
+  ) {
+    throw new GreenApiError("badBody");
+  }
+  return { webhookUrl: body.webhookUrl, incomingWebhook: body.incomingWebhook };
+}
