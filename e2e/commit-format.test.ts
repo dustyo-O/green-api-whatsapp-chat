@@ -111,8 +111,24 @@ describe("saving a change on the author's machine", () => {
     expect(result.status, result.output).toBe(0);
   });
 
-  it("saves git's standard merge message", () => {
-    const result = commit("Merge branch 'lane/001-s4-testing-expert'");
+  // CLAUDE.md → Commits: the affected part of the app is optional (code review F2, scope part rejected)
+  it("saves a change described without the affected part of the app", () => {
+    const result = commit(
+      "docs: add readme with run-locally steps and live link",
+    );
+
+    expect(result.status, result.output).toBe(0);
+  });
+
+  it.each([
+    ["git's", "Merge branch 'lane/001-s4-testing-expert'"],
+    ["git's (into another branch)", "Merge branch 'main' into feat/TKT-1"],
+    [
+      "GitHub's",
+      "Merge pull request #2 from dustyo-O/feat/TKT-1-project-skeleton",
+    ],
+  ])("saves %s standard merge message", (_, message) => {
+    const result = commit(message);
 
     expect(result.status, result.output).toBe(0);
   });
@@ -134,6 +150,13 @@ describe("saving a change on the author's machine", () => {
     ["a capitalised kind", "Feat(app): show build version"],
     ["a summary ending with a period", "feat(app): show build version."],
     ["a header over 100 characters", `feat(app): ${"x".repeat(90)}`],
+    // Code review F2: commitlint's default ignores used to let these through.
+    ["a fixup of an unformatted change", "fixup! updated stuff"],
+    ["git's revert message", 'Revert "x"'],
+    [
+      "a merge message with more after it",
+      "Merge branch 'x' and updated stuff",
+    ],
   ])("refuses %s", (_, message) => {
     const before = gitOk(["rev-parse", "HEAD"]);
 
