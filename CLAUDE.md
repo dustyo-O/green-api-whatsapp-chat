@@ -58,5 +58,6 @@ A ticket is the **intent**, written short by the user; the spec is the **contrac
   Refs: TKT-1 s1/react-frontend
   ```
 - Breaking changes: `!` after the scope and a `BREAKING CHANGE:` footer.
+- **Don't squash-merge multi-commit PRs:** the squash commit takes the PR title, which commitlint never sees (accepted gap, spec 001 tech Q2). Use "Create a merge commit" or "Rebase and merge".
 - Merges keep git's standard `Merge branch '…'` / GitHub's `Merge pull request #…` messages, which commitlint ignores.
 - Enforced by commitlint: a husky `commit-msg` hook rejects bad messages locally, and CI lints every commit in a PR (both arrive with spec 001). Never bypass with `--no-verify`.
