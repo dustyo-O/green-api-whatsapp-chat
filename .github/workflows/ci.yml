@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+env:
+  # Never install git hooks on runners.
+  HUSKY: 0
+
+permissions:
+  contents: read
+
+# Review F4 (spec 001, tech §2.7): this MUST stay at workflow level, covering check + deploy.
+# All `main` runs share one group and run strictly in push order; a newer run only ever cancels a
+# *pending* older one, never the running one, so an older commit can never publish over a newer one.
+# Job-level concurrency on `deploy` alone would let a slow older `check` deploy after a newer one.
+# Never set cancel-in-progress for `main`; PR runs cancel their superseded runs.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # The same gate the lanes run (harness.json), so CI and local agree by construction.
+      - run: npm run check
+      # Exactly the bytes that passed the gate get published; deploy never rebuilds.
+      - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      # Review 2 F1 (spec 001, tech §2.7): concurrency doesn't cover a manual re-run of an older
+      # `main` run. Only the commit that is the tip of `main` right now may publish; any other run
+      # was superseded by a newer one, which owns publishing, so it skips and stays green.
+      - name: Tip guard
+        id: tip
+        env:
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
+        run: |
+          tip=$(git ls-remote "$REPO_URL" refs/heads/main | cut -f1)
+          if [ -z "$tip" ]; then
+            echo "::error::Could not read the tip of main from $REPO_URL"
+            exit 1
+          fi
+          if [ "$tip" = "$GITHUB_SHA" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::$GITHUB_SHA superseded by $tip; not publishing"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.tip.outputs.publish == 'true'
+        id: deployment
+        uses: actions/deploy-pages@v5

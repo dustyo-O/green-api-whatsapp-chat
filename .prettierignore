@@ -1,0 +1,14 @@
+# build output and lockfile
+dist
+coverage
+package-lock.json
+
+# harness and product docs — not formatted by this project's Prettier
+.claude/
+.awos/
+bin/
+context/
+CLAUDE.md
+HARNESS.md
+harness.json
+.mcp.json

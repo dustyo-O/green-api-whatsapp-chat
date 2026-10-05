@@ -1,3 +1,8 @@
 
 # harness: per-run swarm state (briefs, pane ids, logs)
 context/spec/*/lanes/
+
+# node / build output
+node_modules/
+dist/
+coverage/
