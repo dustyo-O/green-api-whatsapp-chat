@@ -8,3 +8,13 @@
 | F2 | major | accepted | Missing state (a main-branch change that fails its checks) is accepted by default. Publishing must depend on passing checks for the same change. | §2.2 requirement; §2.4 requirement + new criterion; §3 In-Scope |
 | F3 | minor | accepted | "within 10 minutes" also covered opening immediately; now "10 minutes or more after acceptance", limited to changes that passed their checks, so it no longer contradicts §2.4. | §2.2 criterion 1 |
 | F4 | major | accepted | Missing state (overlapping runs) is accepted by default. The page must never go back to an older version; checked with two merges less than a minute apart. | §2.2 new requirement + criterion 3; §3 In-Scope |
+
+## spec-codex-20261005-1750.md (codex · effort low · functional + technical) — verdict: DO NOT SHIP
+
+| # | severity | verdict | rationale | applied in |
+|---|---|---|---|---|
+| F1 | major | accepted | A manual re-run of an older `main` run would republish an old SHA, and nothing stopped it. A tip guard in `deploy` (publish only if `GITHUB_SHA` is still the tip of `main`) closes this and also covers runs starting in an unexpected order. | functional §2.2 requirement + criterion c4; tech §2.7 tip guard, §4 table |
+| F2 | major | accepted with user decision (a), 2026-10-05 | The Q3 bootstrap failure has no previous page, so it proves c3 only. c2 is accepted by design (Pages switches deployments atomically) together with §2.4 c1 (red run → label unchanged, observed). No deploy failure is provoked after the baseline. | tech §4 table (§2.4 c2 / c3 split), Decisions Q3 |
+| F3 | major | accepted | "Every accepted change visible after 10 min" contradicted superseded changes; and the cache lifetime starts when the page is cached, not when the change is accepted. Freshness now applies to the latest change only, measured from its run finishing, with normal navigation. | functional §2.2 requirement + c1; tech §2.4, risk 8, §4 table |
+| F4 | minor | accepted | `engines ^22.22.2` contradicted "Node.js 22"; the "still works" claim was unproven. | functional §2.5 requirement + c1/c3; tech risk 7, §4 table |
+| F5 | minor | accepted | §2.6 promised refusal everywhere, while the design leaves squash titles and `main` pushes unchecked (Q2). The enforcement boundary and exception are now stated. | functional §2.6 requirement + c2, §3 In-Scope; tech §2.6 |

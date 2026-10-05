@@ -89,7 +89,7 @@ Deliberately left out: `@testing-library/jest-dom` (arrives with the first real 
 
 - `base: '/green-api-whatsapp-chat/'`. The built `index.html` references `/green-api-whatsapp-chat/assets/…`. Dev serves and prints `http://localhost:5173/green-api-whatsapp-chat/`.
 - Slash-less URL (functional §2.1 c3): GitHub Pages itself answers `301 → …/`. This was verified on a live Actions-deployed project site (`pmndrs.github.io/zustand`), so no app code is needed. It is re-verified on our URL after the first deploy.
-- Pages serves `cache-control: max-age=600`, which matches the "10 minutes or more" wording in functional §2.2. Checks use a hard reload, or `curl` with a `?t=` query.
+- Pages serves `cache-control: max-age=600`, which is why functional §2.2 measures freshness as "10 minutes or more after the run **finished**". The §2.2 c1 check uses **normal navigation without cache-busting**: wait ≥ 10 min after the run finishes, then open the link and `curl` it plain (no `?t=`). Cache-busting is only allowed while debugging, never as the acceptance check.
 
 ### 2.5. npm scripts, Node pinning
 
@@ -116,7 +116,7 @@ Deliberately left out: `@testing-library/jest-dom` (arrives with the first real 
 - **Lane worktrees:** `.husky/_` is gitignored, so a fresh worktree enforces the hook only after `npm ci`. Lanes run `npm ci` first.
 - **CI (PRs only):** job `commitlint`. Checkout with `fetch-depth: 0`, then `npm run commitlint -- --from <base.sha> --to <head.sha> --verbose`, with the SHAs passed through `env:`, not interpolated in `run:`. `--verbose` names each failing message (functional §2.6 c3).
 - **Push to `main`:** not linted. PR commits were already linted, and the default `ignores` skip `Merge branch …` / `Merge pull request …`.
-- **Accepted gap (Q2):** a multi-commit squash merge takes the unlinted PR title; squash stays enabled and "don't squash multi-commit PRs" is a convention only (CLAUDE.md → Commits).
+- **Enforcement boundary (review 2 F5, now stated in functional §2.6):** local hook once `npm ci` has run + CI over each PR's commit range. **Accepted gap (Q2):** a multi-commit squash merge takes the unlinted PR title; squash stays enabled and "don't squash multi-commit PRs" is a convention only (CLAUDE.md → Commits).
 
 ### 2.7. CI/CD workflow: `.github/workflows/ci.yml`
 
@@ -128,7 +128,7 @@ Deliberately left out: `@testing-library/jest-dom` (arrives with the first real 
 |---|---|---|
 | `commitlint` | PR only | checkout `fetch-depth: 0` → setup-node → `npm ci` → commitlint range |
 | `check` | every run | `actions/checkout@v7` → `actions/setup-node@v7` (`node-version-file: .nvmrc`, `cache: npm`) → `npm ci` → `npm run check` → **if push to main:** `actions/upload-pages-artifact@v5` (`path: dist`) |
-| `deploy` | push to `main` only, `needs: check` | `permissions: { pages: write, id-token: write }`, `environment: github-pages` (url from `steps.deployment.outputs.page_url`), `actions/deploy-pages@v5` |
+| `deploy` | push to `main` only, `needs: check` | **first step: tip guard** (below); `permissions: { pages: write, id-token: write }`, `environment: github-pages` (url from `steps.deployment.outputs.page_url`), `actions/deploy-pages@v5` |
 
   The deployed bytes are exactly the bytes that passed the gate, because nothing is rebuilt in `deploy` (F2 is structural). `actions/configure-pages` is not used: `base` is hard-coded, and it can't enable Pages with `GITHUB_TOKEN` anyway.
 
@@ -137,6 +137,7 @@ Deliberately left out: `@testing-library/jest-dom` (arrives with the first real 
   - Because the group covers the whole run (check + deploy), `main` runs execute strictly in push order. A run is only ever dropped by a **newer** run, so the page can never go backwards.
   - Job-level concurrency on `deploy` alone would **not** guarantee this: a slow older `check` could deploy after a newer one. `ci.yml` carries a comment citing F4 so nobody moves it.
   - Accepted edge: with A running, B pending and C queued, B is cancelled. If C then fails, the page stays on A, which is still not backwards.
+- **Tip guard (review 2 F1), first step of `deploy`:** concurrency alone does not cover a manual **re-run of an older `main` run**, and GitHub orders queued runs by when they start waiting. So `deploy` compares `GITHUB_SHA` with the current tip of `main` (`git ls-remote origin refs/heads/main`, no checkout needed). If they differ, it skips `deploy-pages` with a `::notice::` ("superseded by <tip>; not publishing") and the job ends green: a newer run owns publishing. Only the commit that is the tip at deploy time can publish, so the page can never move to an older commit. Accepted edge: if the tip's own check fails, the page stays on the last published commit, which may be older than an intermediate commit that passed but was skipped. That is not backwards, and §2.4 c1 already describes it.
 - **Failure behaviour (functional §2.4):**
   - `check` red → `deploy` skipped, run red, page unchanged.
   - `deploy-pages` red → the previous Pages deployment keeps serving (the switch is atomic) and the run is red.
@@ -178,8 +179,8 @@ Each step needs the user's OK (D3).
   4. **`prettier --check .` fails on 74 harness/doc files.** *Mitigation:* `.prettierignore` lands in the same commit as `format:check`.
   5. **Commits that skip commitlint:** squash merges (unlinted PR title), or lane worktrees before `npm ci`. *Mitigation:* squash gap accepted (Q2), convention in CLAUDE.md; lanes run `npm ci` first.
   6. **"Three commands" counting:** clone + `cd` + `npm ci` + `npm run dev` is four. *Mitigation:* `clone && cd` is line 1 (Q1).
-  7. **Node floor `^22.22.2`:** an older 22.x shows EBADENGINE warnings but still works. *Mitigation:* README says "Node.js 22 (latest 22.x)".
-  8. **The CDN's 10-minute cache** makes a fresh deploy look stale. *Mitigation:* checks use `curl`/hard reload with `?t=`; the functional spec already says "10 minutes or more".
+  7. **Node floor `^22.22.2`:** an older 22.x shows an EBADENGINE warning, and whether the tools then work is **not** guaranteed. *Mitigation:* the functional spec and README say "Node.js 22.22.2 or newer 22.x"; the fresh-clone check runs on exactly 22.22.2.
+  8. **The CDN's 10-minute cache** makes a fresh deploy look stale for up to 10 minutes. *Mitigation:* functional §2.2 c1 is measured ≥ 10 min after the run finishes, with normal navigation; cache-busting only for debugging.
   9. **A wrong derived GREEN-API host looks like a CORS failure** (§2.9 finding). It doesn't affect this spec; it is recorded for "Sign-In & Session".
 
 ---
@@ -200,14 +201,16 @@ Each step needs the user's OK (D3).
 | §2.1 c1 | auto (content + format); lead: live page shows a real code and time |
 | §2.1 c2 | lead: live URL in Chrome, Firefox, Safari, Edge, never blank; optional `verify-ui` screenshot to `docs/screenshots/` |
 | §2.1 c3 | lead: `curl -sI …/green-api-whatsapp-chat` → `301` to `…/` |
-| §2.2 c1 | lead: `app-version` meta (and visible label) = `git rev-parse --short=7 origin/main`, ≥ 10 min or cache-busted |
+| §2.2 c1 | lead: ≥ 10 min after the latest `main` run finished, plain `curl` (no `?t=`) `app-version` meta and a normal browser visit both = `git rev-parse --short=7 origin/main` |
 | §2.2 c2 | by construction (`deploy` only on push to `main`); lead: label unchanged while the PR run is green |
 | §2.2 c3 | lead: two trivial PRs merged < 1 min apart → final label = the later SHA; run list shows the queueing |
+| §2.2 c4 | lead: after a newer deploy, `gh run rerun <older main run>` → its `deploy` logs the "superseded" notice, skips publishing, ends green; label unchanged |
 | §2.3 c1 | lead: the skeleton PR shows `check` + `commitlint` statuses |
 | §2.3 c2 | lead: throwaway PR with a type error → red, label unchanged, PR closed |
 | §2.4 c1 | lead (user OK): merge a PR whose check is red → `deploy` skipped, label unchanged → revert via PR |
-| §2.4 c2/c3 | lead (Q3): first `main` run before Pages is enabled → `deploy` red, nothing published, run marked failed; then enable + re-run |
-| §2.5 c1 | user/lead: fresh clone in a temp dir on Node 22, follow the README, open the printed URL |
+| §2.4 c2 | **by design** (review 2 F2, user 2026-10-05): Pages switches deployments atomically, so a failed `deploy-pages` never replaces the live one; together with §2.4 c1 (red run → label unchanged, observed). Not provoked. |
+| §2.4 c3 | lead (Q3): first `main` run before Pages is enabled → `deploy` red, run marked failed, nothing published; then enable + re-run |
+| §2.5 c1 | user/lead: fresh clone in a temp dir on **exactly Node 22.22.2** (`npx -y -p node@22.22.2 -- …`), follow the README, open the printed URL |
 | §2.5 c2 | auto (formatting); lead: `npm run dev` shows `local` |
 | §2.5 c3 | lead: `npx -y -p node@24 -- npm ci` shows `EBADENGINE … ^22.22.2` |
 | §2.6 c1/c2 | lead: `git commit` with each message after `npm ci` |
@@ -223,6 +226,6 @@ Each step needs the user's OK (D3).
 
 - **Q1 — run-locally count:** line 1 is `git clone … && cd green-api-whatsapp-chat`; README has exactly three lines. Spec unchanged.
 - **Q2 — merge methods:** **leave the gap.** Squash merge stays enabled; the convention is "don't squash multi-commit PRs" (CLAUDE.md → Commits). Accepted residual risk: a squash merge's PR title reaches `main` unlinted. No repo-settings change.
-- **Q3 — real deploy failure for functional §2.4 c2/c3:** **yes** — merge the skeleton PR *before* enabling Pages, observe the red run with nothing published, then enable Pages and `gh run rerun --failed`.
+- **Q3 — real deploy failure for functional §2.4 c3** (c2 by design, review 2 F2): **yes** — merge the skeleton PR *before* enabling Pages, observe the red run with nothing published, then enable Pages and `gh run rerun --failed`.
 - **Q4 — `app-version` meta:** yes (§2.3) — lead's call, not asked: no runtime cost, makes every §2.2 check a `curl`.
 - **Q5 — `engines`:** `^22.22.2` with jsdom 30 (§2.5).
