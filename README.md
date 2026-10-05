@@ -2,7 +2,7 @@
 
 A WhatsApp Web-style chat in the browser that sends and receives messages through GREEN-API.
 
-**Live:** https://dustyo-o.github.io/green-api-whatsapp-chat/
+**Live:** https://dustyo-o.github.io/green-api-whatsapp-chat/ — redeployed automatically on every merge to `main`.
 
 ## Run locally
 
