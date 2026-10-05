@@ -108,7 +108,9 @@ const CASES: [string, Parameters<typeof server.use>, CheckError | null][] = [
 ];
 
 describe("checkInstance", () => {
-  it.each(CASES)("%s → %s", async (_name, handlers, expected) => {
+  it.each(
+    CASES.map(([name, handlers, expected]) => ({ name, handlers, expected })),
+  )("$name → $expected", async ({ handlers, expected }) => {
     server.use(...handlers);
 
     expect(await checkInstance(CREDENTIALS)).toBe(expected);
