@@ -27,3 +27,4 @@ Empty app, built and deployed by CI on day 1, so the public-link path is proven 
   - Slice 4: Feature Testing & Regression (PR #2 = slices 2–4)
   - Slice 5: Delivery guarantees proven on the live site
 - 2026-10-05 — PR #1 (slice 1): https://github.com/dustyo-O/green-api-whatsapp-chat/pull/1 → **In Review**. `check` green, `deploy` skipped on PR.
+- 2026-10-05 — PR #1 merged (`fd68c39`); site live at https://dustyo-o.github.io/green-api-whatsapp-chat/ after the deliberate first-deploy failure (§2.4 c3) + Pages enable + rerun. CORS from the live origin: 6/6 PASS (Chromium + WebKit).
