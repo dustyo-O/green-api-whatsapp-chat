@@ -26,7 +26,7 @@ The interface is in Russian, matching what reviewers see in their own WhatsApp.
 - The sign-in screen has three fields, in this order: **idInstance**, **apiTokenInstance** (hidden as dots, with a show/hide toggle), and **API URL**.
 - The API URL fills itself in from the first four digits of idInstance (for `7103123456` → `https://7103.api.greenapi.com`; empty until four digits are typed) and can't be edited. A checkbox **«Указать API URL вручную»** makes it editable. Unticking it puts the filled-in value back.
 - Spaces at the start and end of every field are ignored.
-- The **«Войти»** button is active only when idInstance is digits only, apiTokenInstance isn't empty, and the API URL is a complete web address starting with `https://` (a trailing `/` is ignored). A short hint appears under a field once something is typed into it that doesn't meet this: «Только цифры, например 7103123456.» for idInstance, «Полный адрес, начинающийся с https://» for the API URL. Empty fields just keep «Войти» inactive.
+- The **«Войти»** button is active only when idInstance is digits only, apiTokenInstance isn't empty, and the API URL is a plain address like `https://7103.api.greenapi.com`: it starts with `https://`, and has no extra path, `?` or `#` part (a trailing `/` is ignored). A short hint appears under a field once something is typed into it that doesn't meet this: «Только цифры, например 7103123456.» for idInstance, «Полный адрес, начинающийся с https://» for the API URL. Empty fields just keep «Войти» inactive.
   - **Acceptance Criteria:**
     - [ ] When the user types `7103123456` into idInstance, then the API URL field shows `https://7103.api.greenapi.com` and can't be edited.
     - [ ] Given the API URL is filled in automatically, when the user ticks «Указать API URL вручную» and types another address, then the field accepts it, and when they untick it again, then the field shows `https://7103.api.greenapi.com` again.
@@ -54,7 +54,7 @@ The interface is in Russian, matching what reviewers see in their own WhatsApp.
 | Anything else goes wrong, or there's no answer within 15 seconds | «Не удалось проверить инстанс. Попробуйте ещё раз.» |
 
   - **Acceptance Criteria:**
-    - [ ] Given an authorized instance that's ready to receive, when the user enters its idInstance and apiTokenInstance and clicks «Войти», then within 5 seconds they see the main screen (§2.3).
+    - [ ] Given an authorized instance that's ready to receive, when the user enters its idInstance and apiTokenInstance and clicks «Войти», then they see the main screen (§2.3), usually within 5 seconds on a normal connection and at most 15 seconds.
     - [ ] Given a wrong apiTokenInstance, when the user clicks «Войти», then they see «Неверный idInstance или apiTokenInstance.» and the three fields still hold what they typed.
     - [ ] Given an API URL that doesn't belong to the instance, or no internet connection, when the user clicks «Войти», then they see «Не удалось связаться с …» naming that API URL.
     - [ ] Given an instance that isn't authorized, when the user clicks «Войти», then they see «Инстанс не авторизован. Отсканируйте QR-код в консоли GREEN-API.», and when they authorize it in the console and click «Проверить снова», then they see the main screen.
@@ -108,3 +108,4 @@ The interface is in Russian, matching what reviewers see in their own WhatsApp.
 _Dated amendments made after the spec was first written — typically by `/awos:spec` in Update Mode when a bug fix changed documented behavior. Each entry records the date, the source reference (bug id or fix description), and what behavior changed and why. Leave empty until the first amendment._
 - 2026-10-05 — review `spec-codex` (stage 2) — §2.1: API URL must be a complete https address, empty until 4 digits; §2.2: catch-all message + 15 s limit; §2.4: unreadable saved data → empty form; cross-tab logout and save-failure message moved out of scope.
 - 2026-10-05 — tech consult open questions 1 and 3 — §2.1: hint texts fixed, and hints appear only for typed-in invalid values (recommended answers, user rule: avoid overengineering).
+- 2026-10-05 — review `spec-codex-20261005-2100` (stage 3) — §2.1: API URL must be a plain address (no path, `?`, `#`); §2.2: sign-in timing is "usually ≤ 5 s, at most 15 s".

@@ -47,7 +47,8 @@ A small typed GREEN-API client makes two read-only GET calls: `getStateInstance`
 | `stateInstance`: `notAuthorized` / `sleepMode` / `starting` / `blocked` | the matching key |
 | `stateInstance`: `suspended` or `yellowCard` | `restricted` |
 | `stateInstance`: any other value | `unknown` |
-| `authorized`, then settings `webhookUrl` non-empty after trim (`null`/missing = empty) | `webhookSet` |
+| `authorized`, then settings `webhookUrl` missing or not a string, or `incomingWebhook` missing | `unknown` (review 3 F2) |
+| settings `webhookUrl` non-empty after trim | `webhookSet` |
 | settings `incomingWebhook !== "yes"` | `incomingOff` |
 | settings fine | `null` → signed in |
 
@@ -73,7 +74,7 @@ A small typed GREEN-API client makes two read-only GET calls: `getStateInstance`
 - Validation runs on normalized values:
   - id `^\d+$`
   - token not empty
-  - URL parses with `new URL()`, `protocol === "https:"`, and a non-empty host, so `https://` alone is invalid. No path/query rules.
+  - URL parses with `new URL()`, `protocol === "https:"`, non-empty host, `pathname === "/"`, and empty `search`, `hash`, `username` and `password`. So it's scheme + host (+ port) only, and `https://`, `https://x/#y`, `https://x?y` and `https://x/base` are all invalid (review 3 F1). Base paths aren't supported.
 - **Hints show only for non-empty invalid values** (empty fields just keep «Войти» disabled). **Assumption** (consult open question 1, recommended).
 - **Hint texts. Assumption** (open question 3, recommended; added to functional §2.1):
   - «Только цифры, например 7103123456.»
@@ -126,7 +127,7 @@ The placeholder page goes away. The sign-in screen keeps the heading and the ver
   - The spec 001 build-info label, which moves into the login footer.
   - Nothing server-side.
 - **Potential Risks & Mitigations** (riskiest first):
-  1. **The real-instance happy path is unproven.** Unknowns: the derived URL vs the console's value, and the real `getSettings` shape. *Mitigation:* slice 1 = client + check + a bare form, verified by the user on a real instance **before** the UI work; lenient settings guard (`null`/missing `webhookUrl` = empty).
+  1. **The real-instance happy path is unproven.** Unknowns: the derived URL vs the console's value, and the real `getSettings` shape. *Mitigation:* slice 1 = client + check + a bare form, verified by the user on a real instance **before** the UI work. The settings guard is strict (a string `webhookUrl` is required, per GREEN-API docs; review 3 F2). If the real instance shows `null`, relax it then.
   2. **GREEN-API 429** (~1 request/s per method). *Mitigation:* `resume()` outside effects, the busy lock, 429 → catch-all. No auto-retry.
   3. **Spec 001 tests break the gate.** *Mitigation:* rewrite them in the same slice (§2.7).
   4. **Empty-body 401/429 parsed as JSON.** *Mitigation:* status before parse, plus a unit test with an empty 401.
