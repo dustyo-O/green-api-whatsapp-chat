@@ -24,13 +24,14 @@ The interface is in Russian, matching what reviewers see in their own WhatsApp.
 ### 2.1. Sign-in form
 
 - The sign-in screen has three fields, in this order: **idInstance**, **apiTokenInstance** (hidden as dots, with a show/hide toggle), and **API URL**.
-- The API URL fills itself in from the first four digits of idInstance (for `7103123456` → `https://7103.api.greenapi.com`) and can't be edited. A checkbox **«Указать API URL вручную»** makes it editable. Unticking it puts the filled-in value back.
+- The API URL fills itself in from the first four digits of idInstance (for `7103123456` → `https://7103.api.greenapi.com`; empty until four digits are typed) and can't be edited. A checkbox **«Указать API URL вручную»** makes it editable. Unticking it puts the filled-in value back.
 - Spaces at the start and end of every field are ignored.
-- The **«Войти»** button is active only when idInstance is digits only, apiTokenInstance isn't empty, and the API URL starts with `https://`. A short hint appears under any field that doesn't meet this.
+- The **«Войти»** button is active only when idInstance is digits only, apiTokenInstance isn't empty, and the API URL is a complete web address starting with `https://` (a trailing `/` is ignored). A short hint appears under any field that doesn't meet this.
   - **Acceptance Criteria:**
     - [ ] When the user types `7103123456` into idInstance, then the API URL field shows `https://7103.api.greenapi.com` and can't be edited.
     - [ ] Given the API URL is filled in automatically, when the user ticks «Указать API URL вручную» and types another address, then the field accepts it, and when they untick it again, then the field shows `https://7103.api.greenapi.com` again.
     - [ ] When the user types letters into idInstance, then a hint appears under the field and «Войти» stays inactive.
+    - [ ] Given «Указать API URL вручную» is ticked, when the user enters just `https://`, then a hint appears under the API URL and «Войти» stays inactive.
     - [ ] When the user clicks the show/hide toggle on apiTokenInstance, then the token switches between dots and readable text.
 
 ### 2.2. Signing in only with a ready instance
@@ -50,6 +51,7 @@ The interface is in Russian, matching what reviewers see in their own WhatsApp.
 | The instance is temporarily restricted | «Работа инстанса временно ограничена. Проверьте его в консоли GREEN-API.» |
 | A webhook address is set, so incoming messages go elsewhere | «Входящие сообщения уходят на webhook. Очистите поле Webhook URL в настройках инстанса в консоли GREEN-API.» |
 | Incoming-message notifications are switched off | «Уведомления о входящих сообщениях выключены. Включите их в настройках инстанса в консоли GREEN-API.» |
+| Anything else goes wrong, or there's no answer within 15 seconds | «Не удалось проверить инстанс. Попробуйте ещё раз.» |
 
   - **Acceptance Criteria:**
     - [ ] Given an authorized instance that's ready to receive, when the user enters its idInstance and apiTokenInstance and clicks «Войти», then within 5 seconds they see the main screen (§2.3).
@@ -57,6 +59,7 @@ The interface is in Russian, matching what reviewers see in their own WhatsApp.
     - [ ] Given an API URL that doesn't belong to the instance, or no internet connection, when the user clicks «Войти», then they see «Не удалось связаться с …» naming that API URL.
     - [ ] Given an instance that isn't authorized, when the user clicks «Войти», then they see «Инстанс не авторизован. Отсканируйте QR-код в консоли GREEN-API.», and when they authorize it in the console and click «Проверить снова», then they see the main screen.
     - [ ] Given an instance with a webhook address set, when the user clicks «Войти», then they see the webhook message, and the same holds for incoming-message notifications being off.
+    - [ ] Given GREEN-API doesn't answer, when 15 seconds pass after «Войти», then the user sees «Не удалось проверить инстанс. Попробуйте ещё раз.», their input is kept and «Проверить снова» is available.
     - [ ] While the check is running, when the user looks at the form, then «Войти» shows that it is working and can't be clicked twice.
 
 ### 2.3. Main screen after sign-in
@@ -67,7 +70,7 @@ The interface is in Russian, matching what reviewers see in their own WhatsApp.
 
 ### 2.4. Remembered session
 
-- The user stays signed in in this browser. On a reload, a short **«Проверяем инстанс…»** screen appears while the saved credentials are checked again. If they're still fine, the main screen opens. If not, the sign-in form appears filled in with the saved values, showing the matching message from §2.2.
+- The user stays signed in in this browser. On a reload, a short **«Проверяем инстанс…»** screen appears while the saved credentials are checked again. If they're still fine, the main screen opens. If not, the sign-in form appears filled in with the saved values, showing the matching message from §2.2. If the saved values can't be read, the empty sign-in form appears.
   - **Acceptance Criteria:**
     - [ ] Given the user is signed in, when they reload the page, then they briefly see «Проверяем инстанс…» and then the main screen, without typing anything.
     - [ ] Given the user is signed in and the instance has since been logged out in the console, when they reload the page, then they see the sign-in form filled in with their values and «Инстанс не авторизован. …».
@@ -94,6 +97,8 @@ The interface is in Russian, matching what reviewers see in their own WhatsApp.
 - Chats, starting a chat by phone number, sending and receiving messages: "Chats & Sending", "Receiving Replies".
 - The "connection lost" banner while signed in, and one-active-tab behaviour: "Connection & Authorization States", "One Active Tab".
 - README instance prerequisites, the demo and the submission: "Documentation", "Public Delivery", "Submission".
+- Logging out in one tab while another tab is checking or signed in ("One Active Tab → Logout Everywhere").
+- A message for browsers that refuse to save data.
 - Changing the instance's settings from the app, automatic retries, more than one instance, an English interface and a logout confirmation.
 
 ---
@@ -101,3 +106,4 @@ The interface is in Russian, matching what reviewers see in their own WhatsApp.
 ## Change Log
 
 _Dated amendments made after the spec was first written — typically by `/awos:spec` in Update Mode when a bug fix changed documented behavior. Each entry records the date, the source reference (bug id or fix description), and what behavior changed and why. Leave empty until the first amendment._
+- 2026-10-05 — review `spec-codex` (stage 2) — §2.1: API URL must be a complete https address, empty until 4 digits; §2.2: catch-all message + 15 s limit; §2.4: unreadable saved data → empty form; cross-tab logout and save-failure message moved out of scope.
