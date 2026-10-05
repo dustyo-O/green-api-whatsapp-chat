@@ -28,7 +28,7 @@ describe("App", () => {
   it("labels a local build as local", () => {
     render(<App build={LOCAL} />);
 
-    expect(screen.getByText("deliberately-wrong")).toBeDefined();
+    expect(screen.getByText("local")).toBeDefined();
   });
 
   // @regression — functional §2.5 c2: "everything else on the page matches the public page"
