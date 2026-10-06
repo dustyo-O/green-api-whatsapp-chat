@@ -8,6 +8,7 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
   border-right: 1px solid var(--color-border);
   background: var(--color-panel);
 }
@@ -30,6 +31,31 @@
   white-space: nowrap;
 }
 
+.actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.add {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.add:hover,
+.add[aria-expanded="true"] {
+  background: var(--color-item-selected);
+}
+
 .logout {
   padding: 4px 8px;
   border: none;
@@ -49,4 +75,20 @@
   color: var(--color-text-muted);
   overflow-wrap: anywhere;
   text-align: center;
+}
+
+.conversation {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--color-chat-bg);
+}
+
+.title {
+  margin: 0;
+  overflow: hidden;
+  font-size: 1rem;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
