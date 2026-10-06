@@ -30,3 +30,12 @@
 | F1 | major | accepted | Data safety: a failed rehydrate could keep A's chats in memory and persist them under B's key. Cheap: `open()` clears in-memory chats before rehydrating; test A-with-chats → B-unreadable → empty. | tasks.md Slice F2 |
 | F2 | major | accepted | Missing state: «Выйти» is outside the locked form, so logout → same-instance sign-in → a late check answer could recreate a chat. A session counter bumped by `open`/`wipe` replaces the `idInstance` comparison; same-instance test. | tasks.md Slice F2 |
 | F3 | major | rejected: decided four times already | Storage write failures out of scope (spec 002 stage 2 F3, stage 3 F3, code review F1; spec 003 stage 3 F2); user rule: avoid overengineering; volumes far below ~5 MB. | — |
+
+## Code review 2026-10-06 — code-codex-20261006-1913.md (codex · effort low · PR #10 after Slice F2) — verdict: SHIP WITH FIXES
+
+Review 1's F1 and F2 are fixed (`11b9476`, `2523737`); no findings on them.
+
+| # | severity | verdict | rationale | applied in |
+|---|---|---|---|---|
+| F1 | major | rejected: decided five times already | Storage write failures out of scope (spec 002 ×3; spec 003 stage 3 F2; PR #10 review 1 F3); user rule: avoid overengineering. | — |
+| F2 | minor | accepted | Missing state: «+» closes the form during a check; the old answer could select the old number and close a newer form. The form ignores its own pending answer after unmount; delayed-answer test. | tasks.md Slice F3 |
