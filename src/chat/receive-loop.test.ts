@@ -151,6 +151,45 @@ describe("runReceiveLoop", () => {
     expect(texts()).toEqual(["Привет-привет"]);
   });
 
+  // @regression — PR #12 review F1: a save that throws backs off, keeps the reply queued, goes on
+  it("keeps a reply queued and goes on when saving it throws", async () => {
+    const setItem = localStorage.setItem.bind(localStorage);
+    let fail = true;
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation((key, value) => {
+      if (fail && key === storageKey(ID)) {
+        fail = false;
+        throw new DOMException("full", "QuotaExceededError");
+      }
+      setItem(key, value);
+    });
+    const atDelete: (string | null)[] = [];
+    server.use(
+      http.delete("*/deleteNotification/*/*", () => {
+        atDelete.push(localStorage.getItem(storageKey(ID)));
+      }),
+    );
+    queue(
+      { receiptId: 1, body: textMessage },
+      { receiptId: 2, body: textBody("Текст", { idMessage: "T2" }) },
+    );
+
+    const { controller, done } = start();
+
+    await vi.waitFor(
+      () => {
+        expect(deleted).toEqual([1, 2]);
+      },
+      { timeout: 3_000 },
+    );
+    expect(received.length).toBeGreaterThanOrEqual(3); // the first one came twice
+    expect(atDelete[0]).toContain("F7AEC1B7086ECDC7E6E45923F5EDB825");
+    controller.abort();
+    await done;
+
+    useChats.getState().open(ID); // a reload: back from localStorage only
+    expect(texts()).toEqual(["Привет-привет", "Текст"]);
+  });
+
   // @regression — tech §2.4 R4: abort stops everything, also a waiting poll
   it("stops on abort, during a poll and during a backoff", async () => {
     const polling = start();

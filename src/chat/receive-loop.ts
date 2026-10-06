@@ -92,8 +92,14 @@ export async function runReceiveLoop(
       // queued for the next sign-in.
       if (stopped()) return;
       const incoming = toIncoming(notification.body);
-      // Synchronous: localStorage is written before the delete goes out.
-      if (incoming !== null) useChats.getState().receive(incoming);
+      // Synchronous: localStorage is written before the delete goes out. A save that throws (a full
+      // localStorage) keeps the notification queued: it comes back after the backoff (review F1).
+      try {
+        if (incoming !== null) useChats.getState().receive(incoming);
+      } catch {
+        await backOff();
+        continue;
+      }
       const { receiptId } = notification;
       try {
         await within(DELETE_BUDGET_MS, wake.signal, (s) =>

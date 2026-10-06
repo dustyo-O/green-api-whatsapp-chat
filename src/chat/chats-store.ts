@@ -72,7 +72,8 @@ interface ChatsState {
   ) => Promise<void>;
   /**
    * Saves a reply (synchronously, so it is persisted when this returns): creates the chat if it is
-   * missing, ignores an `idMessage` the chat already has, inserts by time.
+   * missing, ignores an `idMessage` the chat already has, inserts by time. Throws, keeping nothing,
+   * if it can't be saved.
    */
   receive: (incoming: Incoming) => void;
   /** Sends a ❗/❔ message again: the same bubble goes back to 🕓, then settles. */
@@ -291,19 +292,31 @@ export const useChats = create<ChatsState>()(
             time,
             idMessage,
           };
-          set({
-            chats: {
-              ...chats,
-              [chatId]: {
-                ...chat,
-                messages: insertByTime(chat.messages, message),
-                unread: (chat.unread ?? 0) + (chatId === selectedId ? 0 : 1),
-                ...(chatId.endsWith("@lid") && name !== undefined
-                  ? { title: name }
-                  : {}),
+          try {
+            set({
+              chats: {
+                ...chats,
+                [chatId]: {
+                  ...chat,
+                  messages: insertByTime(chat.messages, message),
+                  unread: (chat.unread ?? 0) + (chatId === selectedId ? 0 : 1),
+                  ...(chatId.endsWith("@lid") && name !== undefined
+                    ? { title: name }
+                    : {}),
+                },
               },
-            },
-          });
+            });
+          } catch (error) {
+            // Not saved (a full localStorage): forget it in memory too, or dedupe would skip the
+            // redelivery and the delete would follow without a save (review F1).
+            saving = false;
+            try {
+              set({ chats });
+            } finally {
+              saving = true;
+            }
+            throw error;
+          }
         },
 
         setDraft: (chatId, draft) => {

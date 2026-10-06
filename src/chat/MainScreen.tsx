@@ -18,7 +18,10 @@ export function MainScreen() {
   useEffect(() => {
     if (credentials === null) return;
     const controller = new AbortController();
-    void runReceiveLoop(credentials, controller.signal);
+    runReceiveLoop(credentials, controller.signal).catch(() => {
+      // Never expected (the loop handles its own errors); the error itself may echo a body.
+      console.error("The receive loop stopped");
+    });
     return () => {
       controller.abort();
     };
