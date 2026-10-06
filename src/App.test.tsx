@@ -10,15 +10,14 @@ const LOCAL = { commit: null, builtAt: null };
 // Build info is always passed explicitly: CI sets GITHUB_SHA during `npm run check`,
 // so the real BUILD_INFO differs between local runs and CI.
 describe("App", () => {
-  // @regression — functional §2.1 c1
-  it("shows the app name, the skeleton note and the commit with its UTC build time", () => {
+  // @regression — functional §2.1 c1 (spec 002 §2.7: the sign-in screen replaced the skeleton note)
+  it("shows the app name, the sign-in form and the commit with its UTC build time", () => {
     render(<App build={PUBLISHED} />);
 
     expect(
       screen.getByRole("heading", { name: "GREEN-API WhatsApp Chat" }),
     ).toBeDefined();
-    expect(screen.getByText(/early skeleton/i)).toBeDefined();
-    expect(screen.getByText(/chat is not available yet/i)).toBeDefined();
+    expect(screen.getByRole("button", { name: "Войти" })).toBeDefined();
     const label = screen.getByText("abc1234 · 2026-10-05 14:25 UTC");
     expect(label.tagName).toBe("TIME");
     expect(label.getAttribute("datetime")).toBe("2026-10-05T14:25:31.000Z");
