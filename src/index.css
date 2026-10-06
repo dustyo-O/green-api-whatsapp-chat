@@ -3,6 +3,13 @@
   --color-text: #111b21;
   --color-text-muted: #667781;
   --color-accent: #008069;
+  --color-panel: #ffffff;
+  --color-panel-header: #f0f2f5;
+  --color-border: #d1d7db;
+  --color-intro-bg: #f0f2f5;
+  --color-button: #00a884;
+  --color-button-text: #ffffff;
+  --color-danger: #ea0038;
 
   color-scheme: light dark;
   font-family:
@@ -20,6 +27,13 @@
     --color-text: #e9edef;
     --color-text-muted: #8696a0;
     --color-accent: #00a884;
+    --color-panel: #111b21;
+    --color-panel-header: #202c33;
+    --color-border: #2a3942;
+    --color-intro-bg: #222e35;
+    --color-button: #00a884;
+    --color-button-text: #111b21;
+    --color-danger: #f15c6d;
   }
 }
 
@@ -27,6 +41,12 @@
 *::before,
 *::after {
   box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
 }
 
 body {
