@@ -31,6 +31,8 @@ interface ChatsState {
   idInstance: string | null;
   chats: Chats;
   selectedId: string | null;
+  /** Goes up on every `open` and `wipe`: an answer started in an older session is stale (not persisted). */
+  session: number;
   /** Switches to this instance's saved chats. Called by the session store on sign-in. */
   open: (idInstance: string) => void;
   /** Forgets every chat of this instance in this browser. Called by the session store on logout. */
@@ -155,6 +157,7 @@ export const useChats = create<ChatsState>()(
         idInstance: null,
         chats: {},
         selectedId: null,
+        session: 0,
 
         open: (idInstance) => {
           // A failed rehydrate (unreadable JSON) leaves the state as it is, so forget the previous
@@ -168,12 +171,17 @@ export const useChats = create<ChatsState>()(
           api.persist.setOptions({ name: storageKey(idInstance) });
           // Synchronous for localStorage; `merge` replaces `chats` with what this key holds.
           void api.persist.rehydrate();
-          set({ idInstance, selectedId: null });
+          set({ idInstance, selectedId: null, session: get().session + 1 });
         },
 
         wipe: () => {
           // Every `set` writes, so reset first and remove the key last.
-          set({ idInstance: null, chats: {}, selectedId: null });
+          set({
+            idInstance: null,
+            chats: {},
+            selectedId: null,
+            session: get().session + 1,
+          });
           api.persist.clearStorage();
         },
 

@@ -42,11 +42,12 @@ export function NewChatForm({ onDone }: NewChatFormProps) {
     }
     const credentials = useSession.getState().credentials;
     if (credentials === null) return;
+    const session = chats.session;
     setChecking(true);
     setError(null);
     const outcome = await checkNumber(credentials, chatId);
-    // A logout or another sign-in while checking: this answer belongs to no open instance.
-    if (useChats.getState().idInstance !== credentials.idInstance) return;
+    // A logout or a sign-in while checking, even with the same instance: this answer is stale.
+    if (useChats.getState().session !== session) return;
     setChecking(false);
     if (outcome === "exists") {
       useChats.getState().addChat(chatId);
