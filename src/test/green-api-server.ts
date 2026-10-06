@@ -74,16 +74,14 @@ export const whatsappExists = (existsWhatsapp: boolean) =>
 export const sentAs = (idMessage: string) =>
   reply("sendMessage", () => HttpResponse.json({ idMessage }));
 
+const JSON_TYPE = { "Content-Type": "application/json" };
+
 /** GREEN-API's real error shape: JSON content type, empty body. */
+export const failure = (code: number) =>
+  new HttpResponse(null, { status: code, headers: JSON_TYPE });
+
 export const status = (method: Method, code: number) =>
-  reply(
-    method,
-    () =>
-      new HttpResponse(null, {
-        status: code,
-        headers: { "Content-Type": "application/json" },
-      }),
-  );
+  reply(method, () => failure(code));
 
 /** Rejects `fetch` with a TypeError, like offline, DNS or a CORS-less 403. */
 export const unreachable = (method: Method) =>
