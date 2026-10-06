@@ -27,3 +27,13 @@
 | # | severity | verdict | rationale | applied in |
 |---|---|---|---|---|
 | F1 | major | accepted in part; rejected: storage confirmation / error UI | A real, wider bug: **any** exception from the save step ends the loop silently (`receive()` is outside both catch blocks; `MainScreen` drops the promise), so replies stop until a reload. Fix: catch errors from the save step, back off **without deleting**, keep looping; test "save throws once → loop survives → reply saved once after reload". Confirmed persistence and a storage-error message stay out of scope (storage write failures, decided eight times; user rule). | tasks.md Slice F1 |
+
+## Code review 2026-10-07 — code-codex-20261007-0129.md (codex · effort low · PR #12 after Slice F1) — verdict: SHIP WITH FIXES
+
+Review 1's F1 is fixed (`e1a2772`); no findings on it.
+
+| # | severity | verdict | rationale | applied in |
+|---|---|---|---|---|
+| F1 | major | accepted | Appending outgoing messages breaks the sorted-list invariant that `insertByTime` relies on; use it for outgoing too; one test. | tasks.md Slice F2 |
+| F2 | major | accepted | Data safety: an overflowing `timestamp` (e.g. 1e308) becomes `Infinity` → `null` in JSON → every saved chat rejected on reload. Validate ms as a safe integer within the Date range, else delete and skip; overflow test. | tasks.md Slice F2 |
+| F3 | minor | accepted | Functional §2.3 says "a grey bubble"; the placeholder needs a grey bubble background, not just muted text. | tasks.md Slice F2 |
