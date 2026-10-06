@@ -22,3 +22,11 @@
 | F4 | major | accepted | Product §1.4 requires an invalid-number message: 400 `Bad phone number` → «Неверный номер. Проверьте код страны и номер.»; the body is confirmed in the slice-1 probe. | functional §2.1; tech §2.2 |
 | F5 | minor | accepted | Architecture §2 now lists `unknown` and separates local ms send time from GREEN-API's seconds timestamp. | architecture §2 |
 | F6 | minor | accepted | Text sent as typed; trim only tests emptiness. | functional §2.3; tech §2.6 |
+
+## Code review 2026-10-06 — code-codex-20261006-1908.md (codex · effort low · PR #10) — verdict: DO NOT SHIP
+
+| # | severity | verdict | rationale | applied in |
+|---|---|---|---|---|
+| F1 | major | accepted | Data safety: a failed rehydrate could keep A's chats in memory and persist them under B's key. Cheap: `open()` clears in-memory chats before rehydrating; test A-with-chats → B-unreadable → empty. | tasks.md Slice F2 |
+| F2 | major | accepted | Missing state: «Выйти» is outside the locked form, so logout → same-instance sign-in → a late check answer could recreate a chat. A session counter bumped by `open`/`wipe` replaces the `idInstance` comparison; same-instance test. | tasks.md Slice F2 |
+| F3 | major | rejected: decided four times already | Storage write failures out of scope (spec 002 stage 2 F3, stage 3 F3, code review F1; spec 003 stage 3 F2); user rule: avoid overengineering; volumes far below ~5 MB. | — |
