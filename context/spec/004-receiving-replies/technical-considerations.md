@@ -44,7 +44,7 @@ A receive loop polls GREEN-API's notification queue one notification at a time: 
 
 ### 2.2. Client (`src/api/green-api.ts`)
 
-- `request()` gains a path suffix (`?receiveTimeout=20`, `/<receiptId>`), the `DELETE` method, and an `allowEmpty` option (`""`/`null` → `null` instead of `badBody`).
+- `request()` gains a path suffix (`?receiveTimeout=5`, `/<receiptId>`), the `DELETE` method, and an `allowEmpty` option (`""`/`null` → `null` instead of `badBody`).
 - `receiveNotification(creds, receiveTimeoutS, signal)` returns `{receiptId, body} | null`. A body without a numeric `receiptId` throws `badBody`.
 - `deleteNotification(creds, receiptId, signal)` returns `void`.
 

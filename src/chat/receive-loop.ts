@@ -6,9 +6,9 @@ import {
 import { useChats } from "./chats-store";
 import { toIncoming } from "./notification";
 
-const RECEIVE_TIMEOUT_S = 20;
-/** The long poll plus 10 s. */
-const RECEIVE_BUDGET_MS = 30_000;
+const RECEIVE_TIMEOUT_S = 5;
+/** The long poll plus 3 s: a poll stalled by an upstream cut recovers within 10 s (review 3 F1). */
+const RECEIVE_BUDGET_MS = 8_000;
 const DELETE_BUDGET_MS = 15_000;
 /** Then 5 s for ever. */
 const BACKOFF_MS = [1_000, 2_000, 4_000, 5_000];
