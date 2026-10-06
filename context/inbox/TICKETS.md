@@ -117,3 +117,18 @@ Found while: verifying TKT-4
 Impact: §2.5 of spec 003, the Receiving Replies real checks, and the demo all need a working instance (likely a spare number). App behaviour is per spec; not a code defect.
 
 **Comments**
+
+---
+
+## TKT-6 — Receiving replies
+
+- **type:** feature · **state:** In Progress · **created:** 2026-10-06
+- **roadmap:** Phase 1 → "Receiving Replies"
+
+**Description**
+
+Incoming text messages appear in the right chat within 10 seconds; a text from an unknown number creates a new chat; non-text and group events are skipped without blocking the queue; every reply appears exactly once, in order.
+
+**Comments**
+
+- 2026-10-06 — `/harness:feature` started; stage 0 (grill) running. Real checks depend on TKT-5 (a linkable WhatsApp account).
