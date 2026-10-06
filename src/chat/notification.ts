@@ -53,6 +53,10 @@ function textOf(typeMessage: unknown, messageData: unknown): string | null {
   return typeof text === "string" ? text : null;
 }
 
+/** A safe integer `Date` accepts: anything else (`Infinity`) would be saved as `null` (review F2). */
+const isValidTime = (ms: number) =>
+  Number.isSafeInteger(ms) && Math.abs(ms) <= 8.64e15;
+
 export function toIncoming(body: unknown): Incoming | null {
   if (field(body, "typeWebhook") !== "incomingMessageReceived") return null;
   const senderData = field(body, "senderData");
@@ -61,13 +65,13 @@ export function toIncoming(body: unknown): Incoming | null {
   const timestamp = field(body, "timestamp");
   const messageData = field(body, "messageData");
   const typeMessage = field(messageData, "typeMessage");
+  const time = typeof timestamp === "number" ? timestamp * 1000 : NaN;
   if (
     typeof chatId !== "string" ||
     !PERSONAL_CHAT.test(chatId) ||
     typeof idMessage !== "string" ||
     idMessage === "" ||
-    typeof timestamp !== "number" ||
-    !Number.isFinite(timestamp) ||
+    !isValidTime(time) ||
     (typeof typeMessage === "string" && SKIPPED_TYPES.includes(typeMessage))
   ) {
     return null;
@@ -79,7 +83,7 @@ export function toIncoming(body: unknown): Incoming | null {
   return {
     chatId,
     idMessage,
-    time: timestamp * 1000,
+    time,
     text: textOf(typeMessage, messageData),
     ...(name === undefined ? {} : { name }),
   };

@@ -121,6 +121,25 @@ describe("runReceiveLoop", () => {
     expect(texts()).toEqual([null, "Текст"]);
   });
 
+  // @regression — review F2 (pr #12): a time JSON can't keep would wipe every chat on reload
+  it("skips a timestamp beyond the Date range, so saved chats still restore", async () => {
+    queue(
+      { receiptId: 1, body: textMessage },
+      {
+        receiptId: 2,
+        body: textBody("x", { idMessage: "BIG", timestamp: 1e308 }),
+      },
+    );
+
+    start();
+
+    await vi.waitFor(() => {
+      expect(deleted).toEqual([1, 2]);
+    });
+    useChats.getState().open(ID);
+    expect(texts()).toEqual(["Привет-привет"]);
+  });
+
   it("goes on after an empty answer", async () => {
     queue(null, { receiptId: 1, body: textMessage });
 

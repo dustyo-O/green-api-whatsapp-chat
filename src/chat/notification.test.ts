@@ -91,6 +91,12 @@ describe("toIncoming", () => {
     ["a newsletter", textBody("x", { chatId: "120363@newsletter" })],
     ["no idMessage", textBody("x", { idMessage: "" })],
     ["a string timestamp", textBody("x", { timestamp: "1" as never })],
+    // review F2 (pr #12): Infinity ms is saved as `null` and wipes every chat on reload
+    ["a timestamp too big for a Date", textBody("x", { timestamp: 1e308 })],
+    [
+      "a timestamp past the Date range",
+      textBody("x", { timestamp: 8.64e12 + 1 }),
+    ],
     ["no senderData", { ...textMessage, senderData: undefined }],
   ])("skips %s", (_, body) => {
     expect(toIncoming(body)).toBeNull();
