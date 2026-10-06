@@ -57,6 +57,10 @@
 }
 
 .unsupported {
+  background: var(--color-bubble-unsupported);
+}
+
+.unsupported .text {
   color: var(--color-text-muted);
   font-style: italic;
 }

@@ -379,7 +379,7 @@ describe("§2.3 messages the app can't display", () => {
       `${PLACEHOLDER}${formatTime(stickerMessage.timestamp * 1000)} `,
     );
     expect(isIncoming(item)).toBe(true);
-    expect(hasClass(text, "unsupported")).toBe(true);
+    expect(hasClass(item, "unsupported")).toBe(true);
     expect(row("+7 903 747-44-11").textContent).toContain(PLACEHOLDER);
   });
 

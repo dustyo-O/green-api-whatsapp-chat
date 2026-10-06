@@ -43,19 +43,15 @@ export function Conversation({ chatId }: { chatId: string }) {
           return (
             <li
               key={m.id}
-              className={
-                m.direction === "in"
-                  ? `${styles.bubble} ${styles.in}`
-                  : styles.bubble
-              }
+              className={[
+                styles.bubble,
+                m.direction === "in" && styles.in,
+                m.text === null && styles.unsupported,
+              ]
+                .filter(Boolean)
+                .join(" ")}
             >
-              {m.text === null ? (
-                <p className={`${styles.text} ${styles.unsupported}`}>
-                  {UNSUPPORTED_TEXT}
-                </p>
-              ) : (
-                <p className={styles.text}>{m.text}</p>
-              )}
+              <p className={styles.text}>{m.text ?? UNSUPPORTED_TEXT}</p>
               <span className={styles.meta}>
                 <time>{formatTime(m.time)}</time>{" "}
                 {status !== null && MARKS[status]}
