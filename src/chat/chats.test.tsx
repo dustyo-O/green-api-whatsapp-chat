@@ -412,6 +412,28 @@ describe("§2.1 starting a chat", () => {
       localStorage.getItem("green-api-chat:chats:7103999999"),
     ).not.toContain(RU);
   });
+
+  // @regression — review F2: the same instance signed in again is a new session
+  it("drops a check answer that arrives after logout and signing in with the same instance", async () => {
+    signedIn();
+    const check = gatedCheck();
+    server.use(check.handler);
+    const user = userEvent.setup();
+    await openPage();
+    await startChat(user, "903 747-44-11");
+
+    await user.click(screen.getByRole("button", { name: "Выйти" }));
+    await signIn(user);
+    await act(async () => {
+      check.open();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+
+    expect(
+      screen.getByText("Нет чатов. Нажмите «+», чтобы начать"),
+    ).toBeDefined();
+    expect(localStorage.getItem(CHATS_KEY) ?? "").not.toContain(RU);
+  });
 });
 
 describe("§2.2 chat list", () => {

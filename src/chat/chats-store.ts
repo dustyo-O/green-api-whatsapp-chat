@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
 import type { Credentials } from "../api/green-api";
 import { sendText, type SendOutcome } from "./outcomes";
 
@@ -31,6 +31,8 @@ interface ChatsState {
   idInstance: string | null;
   chats: Chats;
   selectedId: string | null;
+  /** Goes up on every `open` and `wipe`: an answer started in an older session is stale (not persisted). */
+  session: number;
   /** Switches to this instance's saved chats. Called by the session store on sign-in. */
   open: (idInstance: string) => void;
   /** Forgets every chat of this instance in this browser. Called by the session store on logout. */
@@ -120,6 +122,9 @@ export function sortChats(chats: Chats): Chat[] {
 export const storageKey = (idInstance: string) =>
   `green-api-chat:chats:${idInstance}`;
 
+/** Off only while `open()` forgets the previous instance's chats: that reset must not be saved. */
+let saving = true;
+
 export const useChats = create<ChatsState>()(
   persist(
     (set, get, api) => {
@@ -152,17 +157,31 @@ export const useChats = create<ChatsState>()(
         idInstance: null,
         chats: {},
         selectedId: null,
+        session: 0,
 
         open: (idInstance) => {
+          // A failed rehydrate (unreadable JSON) leaves the state as it is, so forget the previous
+          // instance's chats first, without writing them anywhere (review F1).
+          saving = false;
+          try {
+            set({ idInstance: null, chats: {}, selectedId: null });
+          } finally {
+            saving = true;
+          }
           api.persist.setOptions({ name: storageKey(idInstance) });
           // Synchronous for localStorage; `merge` replaces `chats` with what this key holds.
           void api.persist.rehydrate();
-          set({ idInstance, selectedId: null });
+          set({ idInstance, selectedId: null, session: get().session + 1 });
         },
 
         wipe: () => {
           // Every `set` writes, so reset first and remove the key last.
-          set({ idInstance: null, chats: {}, selectedId: null });
+          set({
+            idInstance: null,
+            chats: {},
+            selectedId: null,
+            session: get().session + 1,
+          });
           api.persist.clearStorage();
         },
 
@@ -239,6 +258,15 @@ export const useChats = create<ChatsState>()(
     {
       // Replaced by `open()` before anything is read or written.
       name: "green-api-chat:chats",
+      storage: createJSONStorage(() => ({
+        getItem: (name) => localStorage.getItem(name),
+        setItem: (name, value) => {
+          if (saving) localStorage.setItem(name, value);
+        },
+        removeItem: (name) => {
+          localStorage.removeItem(name);
+        },
+      })),
       version: 1,
       skipHydration: true,
       partialize: ({ chats }) => ({ chats }),

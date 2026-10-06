@@ -218,6 +218,20 @@ describe("useChats", () => {
     expect(useChats.getState().chats).toEqual({});
   });
 
+  // @regression — review F1: an unreadable key never keeps or re-saves the previous instance's chats
+  it("forgets the previous instance's chats when the next one's are unreadable", () => {
+    useChats.getState().open(A);
+    useChats.getState().addChat(RU);
+    localStorage.setItem(storageKey(B), "{not json");
+
+    useChats.getState().open(B);
+
+    expect(useChats.getState().chats).toEqual({});
+    expect(useChats.getState().selectedId).toBeNull();
+    expect(localStorage.getItem(storageKey(B))).not.toContain(RU);
+    expect(saved(A)).toMatchObject({ state: { chats: { [RU]: { id: RU } } } });
+  });
+
   // @regression — functional §2.4: logout removes all chats from this browser
   it("removes the key on wipe, and nothing written later brings it back", () => {
     useChats.getState().open(A);
