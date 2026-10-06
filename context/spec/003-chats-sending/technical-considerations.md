@@ -77,6 +77,7 @@ A separate Zustand + `persist` store with `skipHydration: true`:
 | `Message` | `{ id (crypto.randomUUID), direction: "out", text, time (epoch ms), status: sending\|sent\|failed\|unknown, idMessage? }` |
 | `selectedId` | `chatId \| null` (not persisted → the placeholder shows after a reload) |
 
+- **`open()` resets first:** it clears `chats`, `selectedId` and `idInstance` in memory with storage writes switched off, then sets the key and rehydrates, so a failed rehydrate can't carry one instance's chats into another (code review F1).
 - **Actions:**
   - `open(idInstance)`
   - `wipe()`
@@ -106,7 +107,7 @@ A separate Zustand + `persist` store with `skipHydration: true`:
 | Path | Responsibility |
 |---|---|
 | `src/chat/MainScreen.tsx` (+ css) | sidebar header: instance label, «+» (`aria-label="Новый чат"`), «Выйти»; body: `NewChatForm` (when open) + `ChatList`; right area: `Conversation` or the spec 002 placeholder |
-| `src/chat/NewChatForm.tsx` (+ css) | `<form>` + `<fieldset disabled={checking}>` (the whole lock), picker, code field for «Другая страна», number, «Начать чат» / «Проверяем…», error `role="alert"`. Exists → select; else `checkNumber` → `addChat`, or show the error. **The `idInstance` is captured when the check starts; if it has changed by the time the answer arrives (logout, other sign-in), the result is dropped** (review 3 F1). **On success the row closes; on failure the number stays** (functional §2.1 clarified) |
+| `src/chat/NewChatForm.tsx` (+ css) | `<form>` + `<fieldset disabled={checking}>` (the whole lock), picker, code field for «Другая страна», number, «Начать чат» / «Проверяем…», error `role="alert"`. Exists → select; else `checkNumber` → `addChat`, or show the error. **A session counter (in the chats store, not persisted, increased by `open` and `wipe`) is captured when the check starts; if it has changed by the time the answer arrives (logout, sign-in to the same or another instance), the result is dropped** (review 3 F1; code review F2 replaced the earlier `idInstance` comparison). **On success the row closes; on failure the number stays** (functional §2.1 clarified) |
 | `src/chat/ChatList.tsx` (+ css) | `<ul>` of buttons (`aria-current`): title, a one-line preview, `HH:MM`; the empty text |
 | `src/chat/Conversation.tsx` (+ css) | header title, a scrolling list of bubbles (scroll to the newest on `[chatId, messages.length]` via `scrollTop`), `Composer`, bubbles with the marks: ❗ «Не отправлено · Повторить», ❔ «Статус неизвестен · Повторить» behind `window.confirm("Сообщение могло уже уйти. Отправить ещё раз?")` |
 | `src/chat/Composer.tsx` | `<textarea rows=1 maxLength={20000} placeholder="Введите сообщение">` bound to the chat's `draft`; Enter (no Shift, not composing) sends the text **as typed** if `text.trim()` is non-empty (trim only tests emptiness, review 3 F6); no send button |
