@@ -1,5 +1,7 @@
 // Pure phone helpers for starting a chat (tech §2.5).
 
+import type { Chat } from "./chats-store";
+
 export interface Country {
   /** The `<select>` value: RU and KZ share the code 7. */
   id: string;
@@ -51,4 +53,10 @@ export function formatTitle(chatId: string): string {
   const ru = /^7(\d{3})(\d{3})(\d{2})(\d{2})$/.exec(digits);
   if (ru) return `+7 ${ru[1]} ${ru[2]}-${ru[3]}-${ru[4]}`;
   return `+${digits}`;
+}
+
+/** The chat's title: the number, or for a hidden number (`@lid`) the WhatsApp name (tech §2.6). */
+export function chatTitle(chat: Pick<Chat, "id" | "title">): string {
+  if (chat.id.endsWith("@lid")) return chat.title ?? "Неизвестный номер";
+  return formatTitle(chat.id);
 }

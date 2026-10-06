@@ -2,7 +2,8 @@ import { useEffect, useRef } from "react";
 import { useSession } from "../auth/session-store";
 import { useChats, type Chat, type MessageStatus } from "./chats-store";
 import { Composer } from "./Composer";
-import { formatTitle } from "./phone";
+import { UNSUPPORTED_TEXT } from "./notification";
+import { chatTitle } from "./phone";
 import { formatTime } from "./time";
 import styles from "./Conversation.module.css";
 
@@ -33,15 +34,28 @@ export function Conversation({ chatId }: { chatId: string }) {
   return (
     <section className={styles.conversation}>
       <header className={styles.header}>
-        <h2 className={styles.title}>{formatTitle(chatId)}</h2>
+        <h2 className={styles.title}>{chatTitle(chat ?? { id: chatId })}</h2>
       </header>
       <ol ref={listRef} className={styles.messages} aria-label="Сообщения">
         {messages.map((m) => {
           const status = m.direction === "out" ? m.status : null;
           const problem = status === null ? undefined : PROBLEMS[status];
           return (
-            <li key={m.id} className={styles.bubble}>
-              <p className={styles.text}>{m.text}</p>
+            <li
+              key={m.id}
+              className={
+                m.direction === "in"
+                  ? `${styles.bubble} ${styles.in}`
+                  : styles.bubble
+              }
+            >
+              {m.text === null ? (
+                <p className={`${styles.text} ${styles.unsupported}`}>
+                  {UNSUPPORTED_TEXT}
+                </p>
+              ) : (
+                <p className={styles.text}>{m.text}</p>
+              )}
               <span className={styles.meta}>
                 <time>{formatTime(m.time)}</time>{" "}
                 {status !== null && MARKS[status]}

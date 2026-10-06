@@ -17,13 +17,23 @@ export type QueueAnswer = Notification | null | Response;
 
 let queued: QueueAnswer[] = [];
 
+/** Polls waiting on an empty queue; `queue()` ends them. */
+let waiting: (() => void)[] = [];
+
 /**
  * Appends to GREEN-API's notification queue. A notification stays at the head until it is
  * deleted (a real FIFO, so a failed delete re-delivers it); `null` (an empty body) and responses
- * are answered once. An empty queue never answers, so the client's own budget or abort ends it.
+ * are answered once. An empty queue answers nothing until the client's own budget or abort ends
+ * the poll, or until something is queued: then the waiting polls answer empty, like a long poll
+ * that ran out, and the next poll gets the head (an aborted poll can't take it).
  */
 export function queue(...answers: QueueAnswer[]) {
   queued.push(...answers);
+  const wake = waiting;
+  waiting = [];
+  wake.forEach((resolve) => {
+    resolve();
+  });
 }
 
 const isNotification = (
@@ -36,9 +46,11 @@ const notificationQueue = [
   http.get("*/receiveNotification/*", async () => {
     const head = queued.at(0);
     if (head === undefined) {
-      // A long poll that never ends; the client's abort rejects its fetch.
-      await delay("infinite");
-      return new HttpResponse(null);
+      // The client's abort rejects its fetch; MSW never tells the handler.
+      await new Promise<void>((resolve) => {
+        waiting.push(resolve);
+      });
+      return new HttpResponse("", { headers: JSON_TYPE });
     }
     if (isNotification(head)) return HttpResponse.json(head);
     queued.shift();
@@ -92,6 +104,7 @@ export function setupGreenApiServer() {
     posted.length = 0;
     received.length = 0;
     deleted.length = 0;
+    queue(); // ends the polls still waiting
     queued = [];
   });
   afterAll(() => {
