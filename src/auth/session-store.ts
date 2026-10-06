@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { useChats } from "../chat/chats-store";
 import { checkInstance, type CheckError } from "./check-instance";
 import type { CredentialsForm } from "./credentials";
 
@@ -41,6 +42,7 @@ export const useSession = create<SessionState>()(
         if (credentials === null) return;
         set({ screen: "checking", error: null });
         const error = await checkInstance(credentials);
+        if (error === null) useChats.getState().open(credentials.idInstance);
         // On failure the saved credentials stay, so the form comes back prefilled.
         set(
           error === null
@@ -53,6 +55,7 @@ export const useSession = create<SessionState>()(
         if (get().busy) return;
         set({ busy: true, error: null });
         const error = await checkInstance(credentials);
+        if (error === null) useChats.getState().open(credentials.idInstance);
         set(
           error === null
             ? { busy: false, credentials, screen: "signedIn" }
@@ -61,6 +64,7 @@ export const useSession = create<SessionState>()(
       },
 
       signOut: () => {
+        useChats.getState().wipe();
         set({ credentials: null, screen: "signedOut", error: null });
       },
     }),
