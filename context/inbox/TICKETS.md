@@ -52,3 +52,21 @@ Credentials login with readiness check (idInstance, apiTokenInstance, API URL de
   - Slice 2: WhatsApp Web look
   - Slice 3: Feature Testing & Regression
   - Slice 4: Ship
+- 2026-10-06 — Slice 1 done; real-instance check passed (user). Derived API URL matches the console (12-digit idInstance, `7107` host).
+
+---
+
+## TKT-3 — Fast repeated reloads fail the instance check
+
+- **type:** bug · **state:** Backlog · **created:** 2026-10-06 · **related:** TKT-2
+
+**Description**
+
+If i reload very fast, instance eventually fails to confirm (minor).
+
+Context: spec 002 sign-in-session, slice 1 (real-instance check on local dev) · branch feat/TKT-2-sign-in-session
+Repro: signed in with a real instance, reload the page several times in quick succession → «Не удалось проверить инстанс. Попробуйте ещё раз.»
+Found while: verifying TKT-2
+Likely cause: GREEN-API rate limit (~1 req/s per method, 429 with empty body) → mapped to `unknown` (spec 002 tech §2.2, risk 2).
+
+**Comments**
