@@ -1,4 +1,4 @@
-import { useState, type SubmitEvent } from "react";
+import { useEffect, useRef, useState, type SubmitEvent } from "react";
 import { useSession } from "../auth/session-store";
 import { useChats } from "./chats-store";
 import { checkNumber, type CheckOutcome } from "./outcomes";
@@ -24,6 +24,14 @@ export function NewChatForm({ onDone }: NewChatFormProps) {
   const [number, setNumber] = useState("");
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState<CheckError | null>(null);
+  // Cleared when the row closes: a check still running then belongs to no form.
+  const active = useRef(true);
+  useEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+    };
+  }, []);
 
   const other = countryId === "other";
   const code = other
@@ -46,8 +54,9 @@ export function NewChatForm({ onDone }: NewChatFormProps) {
     setChecking(true);
     setError(null);
     const outcome = await checkNumber(credentials, chatId);
-    // A logout or a sign-in while checking, even with the same instance: this answer is stale.
-    if (useChats.getState().session !== session) return;
+    // The row was closed, or a logout or a sign-in (even with the same instance) happened
+    // while checking: this answer is stale.
+    if (!active.current || useChats.getState().session !== session) return;
     setChecking(false);
     if (outcome === "exists") {
       useChats.getState().addChat(chatId);
