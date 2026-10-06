@@ -39,3 +39,12 @@ Review 1's F1 and F2 are fixed (`11b9476`, `2523737`); no findings on them.
 |---|---|---|---|---|
 | F1 | major | rejected: decided five times already | Storage write failures out of scope (spec 002 ×3; spec 003 stage 3 F2; PR #10 review 1 F3); user rule: avoid overengineering. | — |
 | F2 | minor | accepted | Missing state: «+» closes the form during a check; the old answer could select the old number and close a newer form. The form ignores its own pending answer after unmount; delayed-answer test. | tasks.md Slice F3 |
+
+## Code review 2026-10-06 — code-codex-20261006-1917.md (codex · effort low · PR #10 after Slice F3) — verdict: SHIP WITH FIXES
+
+Review 2's F2 is fixed (`7016709`); no findings on it.
+
+| # | severity | verdict | rationale | applied in |
+|---|---|---|---|---|
+| F1 | major | rejected: decided six times already | Storage write failures out of scope; user rule: avoid overengineering. | — |
+| F2 | minor | rejected: contradicts the spec | Functional §2.3 scrolls "whenever the user sends one" (a new message). A retry resends an existing bubble in place (tech §2.4: same time, same position); scrolling away from the bubble the user just clicked would be worse. | — |

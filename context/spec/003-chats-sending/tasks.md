@@ -37,7 +37,7 @@
   - [x] Run all generated tests. All must pass. Fix any failures before proceeding. **[Agent: testing-expert]** _(Done 2026-10-06: `check` exit 0, 16 files, 284/284. Lead re-ran on the merged tree: 284/284, exit 0.)_
 
 - [ ] **Slice 5: Ship**
-  - [ ] Push and open the PR (`feat: chats and sending`, links tasks.md + reviews/, `Refs: TKT-4`). **Confirm `gh pr checks` lists passing `check` + `commitlint` before merging** (reopen the PR if no checks appear). Run `/harness:review-code 003`, fix through the lane, merge with a merge commit. Comment the PR on TKT-4. **[Lead]**
+  - [x] Push and open the PR (`feat: chats and sending`, links tasks.md + reviews/, `Refs: TKT-4`). **Confirm `gh pr checks` lists passing `check` + `commitlint` before merging** (reopen the PR if no checks appear). Run `/harness:review-code 003`, fix through the lane, merge with a merge commit. Comment the PR on TKT-4. **[Lead]** _(Done 2026-10-06: https://github.com/dustyo-O/green-api-whatsapp-chat/pull/10. CI confirmed present and green on every push before merging. Code reviews: round 1 → F1 (rehydrate isolation) + F2 (same-instance stale check) fixed in Slice F2, storage rejected; round 2 → stale form answer fixed in Slice F3, storage rejected; round 3 → storage rejected again, retry-scroll rejected as contradicting §2.3. Merged with a merge commit.)_
   - [ ] On the live site with your real instance: «+» → your main WhatsApp number → «Начать чат»; send «Привет» → ✅; it arrives on your main phone; reload → the chat and the message are still there; «Выйти» and sign in again → «Нет чатов…». **[User]**
 
 - [x] **Slice F1: Real checkWhatsapp answers (from the slice-1 probe)**

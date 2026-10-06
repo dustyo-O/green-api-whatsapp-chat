@@ -98,3 +98,4 @@ WhatsApp Web-style chat layout; start a chat by the recipient's phone number; se
   - Slice 3: Send messages
   - Slice 4: Feature Testing & Regression
   - Slice 5: Ship
+- 2026-10-06 — PR #10: https://github.com/dustyo-O/green-api-whatsapp-chat/pull/10 → In Review → merged after 3 code-review rounds (3 fixes, storage-failure point rejected each time).
