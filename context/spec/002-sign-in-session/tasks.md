@@ -24,6 +24,7 @@
 
 - [ ] **Slice 2: WhatsApp Web look**
   - [ ] Add the palette tokens to `src/index.css` (light + dark, tech §2.5). Style `LoginScreen` (a centred card, labelled inputs, hints, green «Войти», the error block in `--color-danger`, the version footer) and `MainScreen` (two columns `minmax(280px, 30%) 1fr`, a 60px header with «Инстанс {id}» and «Выйти», the muted centred placeholder). CSS Modules only; no icons, avatars or mobile layout. **[Agent: react-frontend]**
+  - [ ] TKT-3: in `checkInstance`, when either call gets HTTP **429**, wait ~1.1 s and retry that call **once**, inside the same 15 s budget; a second 429 still maps to `unknown`. No other retries. Add MSW cases to `check-instance.test.ts`: 429 then 200 → success; 429 twice → `unknown`; the retry respects the 15 s timeout. RED proof. Commit footer `Refs: TKT-3 s2/react-frontend`. **[Agent: react-frontend]**
   - [ ] Verify: `npm run check` green. With `verify-ui` on `npm run dev` (fake credentials, MSW not needed: check the login card and, by seeding a mocked signed-in state in a test or via the store in the console, the main screen): no overflow at 1280×800 and 375×667, all texts present, light and dark. Delete screenshots. **[Agent: react-frontend]**
 
 - [ ] **Slice 3: Feature Testing & Regression**

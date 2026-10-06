@@ -43,7 +43,8 @@ A small typed GREEN-API client makes two read-only GET calls: `getStateInstance`
 |---|---|
 | HTTP 401 or 403 with CORS (a real GREEN-API answer) | `wrongCredentials` |
 | `fetch` `TypeError` (offline, DNS, host/instance mismatch → CORS-less nginx 403) | `unreachable` |
-| 15 s budget aborted; 429; 5xx; other non-2xx; non-JSON or wrong-shape 2xx; anything thrown | `unknown` |
+| 429 → wait ~1.1 s and retry that call **once** (TKT-3, user decision 2026-10-06); a second 429 → `unknown` | — / `unknown` |
+| 15 s budget aborted; 5xx; other non-2xx; non-JSON or wrong-shape 2xx; anything thrown | `unknown` |
 | `stateInstance`: `notAuthorized` / `sleepMode` / `starting` / `blocked` | the matching key |
 | `stateInstance`: `suspended` or `yellowCard` | `restricted` |
 | `stateInstance`: any other value | `unknown` |

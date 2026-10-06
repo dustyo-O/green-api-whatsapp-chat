@@ -58,7 +58,7 @@ Credentials login with readiness check (idInstance, apiTokenInstance, API URL de
 
 ## TKT-3 — Fast repeated reloads fail the instance check
 
-- **type:** bug · **state:** Backlog · **created:** 2026-10-06 · **related:** TKT-2
+- **type:** bug · **state:** In Progress · **created:** 2026-10-06 · **related:** TKT-2
 
 **Description**
 
@@ -70,3 +70,4 @@ Found while: verifying TKT-2
 Likely cause: GREEN-API rate limit (~1 req/s per method, 429 with empty body) → mapped to `unknown` (spec 002 tech §2.2, risk 2).
 
 **Comments**
+- 2026-10-06 — user: small fix in spec 002 slice 2 — on a 429, wait ~1 s and retry once inside the 15 s budget (tech §2.2 amended, task added to slice 2) → In Progress.
