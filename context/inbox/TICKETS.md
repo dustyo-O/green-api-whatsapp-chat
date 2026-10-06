@@ -99,3 +99,21 @@ WhatsApp Web-style chat layout; start a chat by the recipient's phone number; se
   - Slice 4: Feature Testing & Regression
   - Slice 5: Ship
 - 2026-10-06 — PR #10: https://github.com/dustyo-O/green-api-whatsapp-chat/pull/10 → In Review → merged after 3 code-review rounds (3 fixes, storage-failure point rejected each time).
+- 2026-10-06 — Stage 5 done: PR #10 merged (`6828df2`). Real delivery check (§2.5) **parked**: WhatsApp logged the instance out and now refuses re-linking → TKT-5.
+
+---
+
+## TKT-5 — Need a linkable WhatsApp account for real checks
+
+- **type:** bug · **state:** Backlog · **created:** 2026-10-06 · **related:** TKT-4
+
+**Description**
+
+I can't link device. Whatsapp denies in. let's go futher with development though, because time is ticking
+
+Context: spec 003 chats-sending, slice 5 (real delivery check) · live `6828df2`
+Repro: API-sent first message to a new contact → ✅ (accepted), ✓✓ on sender, no chat on recipient; then the instance got logged out by WhatsApp; re-linking is refused.
+Found while: verifying TKT-4
+Impact: §2.5 of spec 003, the Receiving Replies real checks, and the demo all need a working instance (likely a spare number). App behaviour is per spec; not a code defect.
+
+**Comments**
