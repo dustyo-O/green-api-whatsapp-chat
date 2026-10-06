@@ -11,6 +11,7 @@ import {
 } from "./credentials";
 
 describe("deriveApiUrl", () => {
+  // @regression — functional §2.1 c1: API URL from the first four digits, empty until then
   it.each([
     ["7103123456", "https://7103.api.greenapi.com"],
     ["  1101000000 ", "https://1101.api.greenapi.com"],
@@ -24,6 +25,7 @@ describe("deriveApiUrl", () => {
 });
 
 describe("normalize", () => {
+  // @regression — functional §2.1: spaces at the start and end are ignored
   it("trims every field and derives the API URL when it is not custom", () => {
     expect(
       normalize({
@@ -53,6 +55,7 @@ describe("normalize", () => {
 });
 
 describe("validation", () => {
+  // @regression — functional §2.1 c3
   it.each([
     ["7103123456", true],
     ["7103a", false],
@@ -62,6 +65,7 @@ describe("validation", () => {
     expect(isValidIdInstance(id)).toBe(valid);
   });
 
+  // @regression — functional §2.1 c4: a plain https address only
   it.each([
     ["https://7103.api.greenapi.com", true],
     ["https://7103.api.greenapi.com/", true],
