@@ -1,7 +1,7 @@
 # Functional Specification: Sign-In & Session
 
 - **Roadmap Item:** Phase 1 → Sign-In & Session (Credentials Login with Readiness Check; Remembered Session & Logout)
-- **Status:** Draft
+- **Status:** Completed
 - **Author:** Alexander Shleyko
 - **Ticket:** TKT-2 · **Source:** `context/inbox/sign-in-session.md` (grill decisions D1–D11)
 
@@ -28,11 +28,11 @@ The interface is in Russian, matching what reviewers see in their own WhatsApp.
 - Spaces at the start and end of every field are ignored.
 - The **«Войти»** button is active only when idInstance is digits only, apiTokenInstance isn't empty, and the API URL is a plain address like `https://7103.api.greenapi.com`: it starts with `https://`, and has no extra path, `?` or `#` part (a trailing `/` is ignored). A short hint appears under a field once something is typed into it that doesn't meet this: «Только цифры, например 7103123456.» for idInstance, «Полный адрес, начинающийся с https://» for the API URL. Empty fields just keep «Войти» inactive.
   - **Acceptance Criteria:**
-    - [ ] When the user types `7103123456` into idInstance, then the API URL field shows `https://7103.api.greenapi.com` and can't be edited.
-    - [ ] Given the API URL is filled in automatically, when the user ticks «Указать API URL вручную» and types another address, then the field accepts it, and when they untick it again, then the field shows `https://7103.api.greenapi.com` again.
-    - [ ] When the user types letters into idInstance, then a hint appears under the field and «Войти» stays inactive.
-    - [ ] Given «Указать API URL вручную» is ticked, when the user enters just `https://`, then a hint appears under the API URL and «Войти» stays inactive.
-    - [ ] When the user clicks the show/hide toggle on apiTokenInstance, then the token switches between dots and readable text.
+    - [x] When the user types `7103123456` into idInstance, then the API URL field shows `https://7103.api.greenapi.com` and can't be edited. _Verified 2026-10-06 (live `a1488c1`, Chromium 153): API URL `https://7103.api.greenapi.com`, read-only. See docs/screenshots/002-login-derived-url.png._
+    - [x] Given the API URL is filled in automatically, when the user ticks «Указать API URL вручную» and types another address, then the field accepts it, and when they untick it again, then the field shows `https://7103.api.greenapi.com` again. _Verified 2026-10-06 (live `a1488c1`, Chromium 153): ticked → editable, `https://example.com` accepted; unticked → `https://7103.api.greenapi.com`._
+    - [x] When the user types letters into idInstance, then a hint appears under the field and «Войти» stays inactive. _Verified 2026-10-06 (live `a1488c1`, Chromium 153): `71a3` → «Только цифры, например 7103123456.», «Войти» disabled._
+    - [x] Given «Указать API URL вручную» is ticked, when the user enters just `https://`, then a hint appears under the API URL and «Войти» stays inactive. _Verified 2026-10-06 (live `a1488c1`, Chromium 153): `https://` → «Полный адрес, начинающийся с https://», «Войти» disabled. See docs/screenshots/002-login-hints.png._
+    - [x] When the user clicks the show/hide toggle on apiTokenInstance, then the token switches between dots and readable text. _Verified 2026-10-06 (live `a1488c1`, Chromium 153): token field type `password` → `text`._
 
 ### 2.2. Signing in only with a ready instance
 
@@ -54,32 +54,32 @@ The interface is in Russian, matching what reviewers see in their own WhatsApp.
 | Anything else goes wrong, or there's no answer within 15 seconds | «Не удалось проверить инстанс. Попробуйте ещё раз.» |
 
   - **Acceptance Criteria:**
-    - [ ] Given an authorized instance that's ready to receive, when the user enters its idInstance and apiTokenInstance and clicks «Войти», then they see the main screen (§2.3), usually within 5 seconds on a normal connection and at most 15 seconds.
-    - [ ] Given a wrong apiTokenInstance, when the user clicks «Войти», then they see «Неверный idInstance или apiTokenInstance.» and the three fields still hold what they typed.
-    - [ ] Given an API URL that doesn't belong to the instance, or no internet connection, when the user clicks «Войти», then they see «Не удалось связаться с …» naming that API URL.
-    - [ ] Given an instance that isn't authorized, when the user clicks «Войти», then they see «Инстанс не авторизован. Отсканируйте QR-код в консоли GREEN-API.», and when they authorize it in the console and click «Проверить снова», then they see the main screen.
-    - [ ] Given an instance with a webhook address set, when the user clicks «Войти», then they see the webhook message, and the same holds for incoming-message notifications being off.
-    - [ ] Given GREEN-API doesn't answer, when 15 seconds pass after «Войти», then the user sees «Не удалось проверить инстанс. Попробуйте ещё раз.», their input is kept and «Проверить снова» is available.
-    - [ ] While the check is running, when the user looks at the form, then «Войти» shows that it is working and can't be clicked twice.
+    - [x] Given an authorized instance that's ready to receive, when the user enters its idInstance and apiTokenInstance and clicks «Войти», then they see the main screen (§2.3), usually within 5 seconds on a normal connection and at most 15 seconds. _Verified 2026-10-06: user signed in on live with the real instance `710722756981` (confirmed); stubbed ready instance on live → main screen. See docs/screenshots/002-main-screen.png._
+    - [x] Given a wrong apiTokenInstance, when the user clicks «Войти», then they see «Неверный idInstance или apiTokenInstance.» and the three fields still hold what they typed. _Verified 2026-10-06 (live `a1488c1`, Chromium 153, real GREEN-API 401): «Неверный idInstance или apiTokenInstance.», fields kept. See docs/screenshots/002-error-wrong-token.png._
+    - [x] Given an API URL that doesn't belong to the instance, or no internet connection, when the user clicks «Войти», then they see «Не удалось связаться с …» naming that API URL. _Verified 2026-10-06 (live `a1488c1`, Chromium 153 + WebKit 26.6, real `TypeError`): «Не удалось связаться с https://7103.api.greenapi.com. …»._
+    - [x] Given an instance that isn't authorized, when the user clicks «Войти», then they see «Инстанс не авторизован. Отсканируйте QR-код в консоли GREEN-API.», and when they authorize it in the console and click «Проверить снова», then they see the main screen. _Verified 2026-10-06 (live `a1488c1`, Chromium 153, stubbed answers): «Инстанс не авторизован. …», then «Проверить снова» with an authorized answer → «Инстанс 710700000001»._
+    - [x] Given an instance with a webhook address set, when the user clicks «Войти», then they see the webhook message, and the same holds for incoming-message notifications being off. _Verified 2026-10-06 (live `a1488c1`, Chromium 153, stubbed answers): webhook message and notifications-off message shown. See docs/screenshots/002-error-webhook.png._
+    - [x] Given GREEN-API doesn't answer, when 15 seconds pass after «Войти», then the user sees «Не удалось проверить инстанс. Попробуйте ещё раз.», their input is kept and «Проверить снова» is available. _Verified 2026-10-06 (live `a1488c1`, Chromium 153, no answer): catch-all after 15.2 s, input kept, «Проверить снова» shown._
+    - [x] While the check is running, when the user looks at the form, then «Войти» shows that it is working and can't be clicked twice. _Verified 2026-10-06 (live `a1488c1`, Chromium 153, slowed answers): «Проверяем…», button disabled, a second click sent nothing (2 calls = 1 check)._
 
 ### 2.3. Main screen after sign-in
 
 - After sign-in the user sees the empty WhatsApp Web-style layout. The left column's header shows **«Инстанс {idInstance}»** and a **«Выйти»** button. The right area shows **«Выберите чат, чтобы начать переписку»**. There are no chats yet (a later feature).
   - **Acceptance Criteria:**
-    - [ ] When the user signs in with idInstance `7103123456`, then the left header shows «Инстанс 7103123456» with a «Выйти» button, and the right area shows «Выберите чат, чтобы начать переписку».
+    - [x] When the user signs in with idInstance `7103123456`, then the left header shows «Инстанс 7103123456» with a «Выйти» button, and the right area shows «Выберите чат, чтобы начать переписку». _Verified 2026-10-06 (live `a1488c1`, Chromium 153): «Инстанс 710700000001», «Выйти», «Выберите чат, чтобы начать переписку»; user confirmed the look on live. See docs/screenshots/002-main-screen.png._
 
 ### 2.4. Remembered session
 
 - The user stays signed in in this browser. On a reload, a short **«Проверяем инстанс…»** screen appears while the saved credentials are checked again. If they're still fine, the main screen opens. If not, the sign-in form appears filled in with the saved values, showing the matching message from §2.2. If the saved values can't be read, the empty sign-in form appears.
   - **Acceptance Criteria:**
-    - [ ] Given the user is signed in, when they reload the page, then they briefly see «Проверяем инстанс…» and then the main screen, without typing anything.
-    - [ ] Given the user is signed in and the instance has since been logged out in the console, when they reload the page, then they see the sign-in form filled in with their values and «Инстанс не авторизован. …».
+    - [x] Given the user is signed in, when they reload the page, then they briefly see «Проверяем инстанс…» and then the main screen, without typing anything. _Verified 2026-10-06 (live `a1488c1`, Chromium 153): reload → «Проверяем инстанс…» → main screen; also confirmed by the user on live. See docs/screenshots/002-checking.png._
+    - [x] Given the user is signed in and the instance has since been logged out in the console, when they reload the page, then they see the sign-in form filled in with their values and «Инстанс не авторизован. …». _Verified 2026-10-06 (live `a1488c1`, Chromium 153, stubbed not-authorized answer on reload): form prefilled with `710700000001` and «Инстанс не авторизован. …»._
 
 ### 2.5. Logout
 
 - **«Выйти»** signs the user out with one click and no confirmation. The browser forgets the saved credentials.
   - **Acceptance Criteria:**
-    - [ ] Given the user is signed in, when they click «Выйти», then they see the sign-in form with all fields empty, and when they reload the page, then the sign-in form is still shown.
+    - [x] Given the user is signed in, when they click «Выйти», then they see the sign-in form with all fields empty, and when they reload the page, then the sign-in form is still shown. _Verified 2026-10-06 (live `a1488c1`, Chromium 153): «Выйти» → empty fields; after a reload still the empty sign-in form; also confirmed by the user on live. See docs/screenshots/002-after-logout.png._
 
 ---
 

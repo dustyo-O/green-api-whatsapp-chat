@@ -6,7 +6,7 @@ It is NOT a copy-paste implementation guide.
 # Technical Specification: Sign-In & Session
 
 - **Functional Specification:** [functional-spec.md](functional-spec.md)
-- **Status:** Draft
+- **Status:** Completed
 - **Author(s):** Alexander Shleyko (lead) · `react-frontend` consult: [consults/](consults/) (`react-frontend-tech-sign-in-*.md`; versions and GREEN-API behaviour verified 2026-10-05)
 
 ---

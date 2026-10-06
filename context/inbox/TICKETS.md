@@ -35,7 +35,7 @@ Empty app, built and deployed by CI on day 1, so the public-link path is proven 
 
 ## TKT-2 — Sign-in & session
 
-- **type:** feature · **state:** In Progress · **created:** 2026-10-05
+- **type:** feature · **state:** Done · **created:** 2026-10-05
 - **roadmap:** Phase 1 → "Sign-In & Session"
 
 **Description**
@@ -53,12 +53,13 @@ Credentials login with readiness check (idInstance, apiTokenInstance, API URL de
   - Slice 3: Feature Testing & Regression
   - Slice 4: Ship
 - 2026-10-06 — Slice 1 done; real-instance check passed (user). Derived API URL matches the console (12-digit idInstance, `7107` host).
+- 2026-10-06 — Stage 6 `/awos:verify 002`: 16/16 criteria verified on live `a1488c1` (screenshots `docs/screenshots/002-*.png`; real-instance flow confirmed by the user); spec + tech → Completed; roadmap items ticked → **Done**.
 
 ---
 
 ## TKT-3 — Fast repeated reloads fail the instance check
 
-- **type:** bug · **state:** In Progress · **created:** 2026-10-06 · **related:** TKT-2
+- **type:** bug · **state:** Done · **created:** 2026-10-06 · **related:** TKT-2
 
 **Description**
 
@@ -73,3 +74,4 @@ Likely cause: GREEN-API rate limit (~1 req/s per method, 429 with empty body) �
 - 2026-10-06 — user: small fix in spec 002 slice 2 — on a 429, wait ~1 s and retry once inside the 15 s budget (tech §2.2 amended, task added to slice 2) → In Progress.
 - 2026-10-06 — fixed in spec 002 slice 2 (`5653179`): one retry after a 429, inside the 15 s budget. Ships with the TKT-2 PR.
 - 2026-10-06 — PR #8: https://github.com/dustyo-O/green-api-whatsapp-chat/pull/8 → In Review → merged (code review: lockfile false positive rejected, URL syntax fixed, storage-failure rejected).
+- 2026-10-06 — shipped in PR #8 (`a1488c1`); fast reloads confirmed fine by the user on live → **Done**.

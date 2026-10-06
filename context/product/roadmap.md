@@ -13,9 +13,9 @@ _The highest priority features that form the core foundation of the product: the
 - [x] **Project Skeleton & First Deploy**
   - [x] **Live "Hello" Page on GitHub Pages:** An empty app, built and deployed by CI on day 1, so the public-link path is proven before any features depend on it.
 
-- [ ] **Sign-In & Session**
-  - [ ] **Credentials Login with Readiness Check:** Let the user enter `idInstance` and `apiTokenInstance` (the API URL is filled in from `idInstance`, with a checkbox to override it) and only let them in once the instance exists, is authorized in WhatsApp, and is ready to receive replies (incoming notifications on, no webhook set). Otherwise, say which check failed and what to change in the GREEN-API console, so a reviewer never ends up in a chat that can't receive.
-  - [ ] **Remembered Session & Logout:** Keep the user signed in across reloads (re-checking the saved credentials each time) and let them log out, which clears credentials and chats from the browser.
+- [x] **Sign-In & Session**
+  - [x] **Credentials Login with Readiness Check:** Let the user enter `idInstance` and `apiTokenInstance` (the API URL is filled in from `idInstance`, with a checkbox to override it) and only let them in once the instance exists, is authorized in WhatsApp, and is ready to receive replies (incoming notifications on, no webhook set). Otherwise, say which check failed and what to change in the GREEN-API console, so a reviewer never ends up in a chat that can't receive.
+  - [x] **Remembered Session & Logout:** Keep the user signed in across reloads (re-checking the saved credentials each time) and let them log out, which clears credentials and chats from the browser.
 
 - [ ] **Chats & Sending**
   - [ ] **WhatsApp Web-Style Chat Layout:** A sidebar chat list, a conversation pane with a header, incoming and outgoing bubbles with timestamps, a composer, and empty states, so the app feels familiar straight away.
