@@ -33,7 +33,7 @@ _A static, client-only React single-page app that talks to GREEN-API directly fr
 - **Persisted Data:**
   - **Session:** `apiUrl`, whether it was customized, `idInstance`, `apiTokenInstance`.
   - **Chats:** `chatId`, the display phone number, and the last-activity time used for sorting.
-  - **Messages:** `idMessage` (when known), a local id, direction, text, the GREEN-API `timestamp`, and status (`sending | sent | failed`).
+  - **Messages:** `idMessage` (when known), a local id, direction, text, a time, and status (`sending | sent | failed | unknown`; `unknown` = the outcome of a send isn't known, spec 003). Outgoing messages use the **local send time in epoch milliseconds**; incoming messages (Receiving Replies) use GREEN-API's `timestamp` in **seconds**, converted to milliseconds when stored.
   - **Drafts:** the unsent text per chat.
 - **Deduplication & Ordering:** an incoming message is skipped if its `idMessage` already exists in that chat. Messages are sorted by GREEN-API `timestamp`, with arrival order breaking ties. An outgoing message gets its `idMessage` from the `SendMessage` response.
 - **Write-before-acknowledge:** an incoming message is saved to the store, and therefore to localStorage, **before** `DeleteNotification` is called. If the tab dies in between, the notification comes back and the duplicate check absorbs it.

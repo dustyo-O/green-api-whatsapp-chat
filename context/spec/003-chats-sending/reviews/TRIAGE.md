@@ -11,3 +11,14 @@
 | F5 | minor | accepted (minimal) | Locking the controls during the check (button «Проверяем…») makes stale results impossible without extra logic. | functional §2.1 |
 | F6 | minor | accepted | Empty chats: no preview/time, sorted by creation; no-selection placeholder from spec 002. | functional §2.2 |
 | F7 | minor | accepted | ✅ = accepted by GREEN-API, not delivered; arrival on the phone stays the §2.5 check. | functional §2.3 |
+
+## spec-codex-20261006-1733.md (codex · effort low · functional + technical) — verdict: SHIP WITH FIXES
+
+| # | severity | verdict | rationale | applied in |
+|---|---|---|---|---|
+| F1 | major | accepted (minimal) | A check started before logout and then a fast re-sign-in could add a chat to the wrong instance. The `idInstance` is captured at the start and the result dropped if it changed. | tech §2.6 |
+| F2 | major | rejected: decided three times already | Storage write failures are out of scope (spec 002 stage 2 F3, stage 3 F3, code review F1); user rule: avoid overengineering; volumes far below the ~5 MB quota. | — |
+| F3 | major | accepted (minimal) | `maxLength={20000}` on the composer keeps text within GREEN-API's limit; one boundary criterion. | functional §2.3; tech §2.6 |
+| F4 | major | accepted | Product §1.4 requires an invalid-number message: 400 `Bad phone number` → «Неверный номер. Проверьте код страны и номер.»; the body is confirmed in the slice-1 probe. | functional §2.1; tech §2.2 |
+| F5 | minor | accepted | Architecture §2 now lists `unknown` and separates local ms send time from GREEN-API's seconds timestamp. | architecture §2 |
+| F6 | minor | accepted | Text sent as typed; trim only tests emptiness. | functional §2.3; tech §2.6 |

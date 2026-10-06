@@ -30,6 +30,7 @@ The interface stays in Russian and as simple as WhatsApp Web.
 - Otherwise the app first checks that the number uses WhatsApp:
   - if it does, the chat is created, appears at the top of the list, and opens;
   - if it doesn't, the user sees «На этом номере нет WhatsApp», and no chat is created;
+  - if GREEN-API says the number itself is invalid, the user sees «Неверный номер. Проверьте код страны и номер.», and no chat is created;
   - if the check can't be completed, the user sees «Не удалось проверить номер. Попробуйте ещё раз.», and no chat is created.
 
   When the chat opens, the new-chat row closes. When no chat is created, the row stays open and the number stays in the field.
@@ -37,6 +38,7 @@ The interface stays in Russian and as simple as WhatsApp Web.
     - [ ] When the signed-in user clicks «+», then a row with the country picker set to 🇷🇺 Россия +7, an empty number field and «Начать чат» appears at the top of the chat list.
     - [ ] Given Россия +7 is selected, when the user types `903 747-44-11` and clicks «Начать чат» for a number that uses WhatsApp, then a chat titled `+7 903 747-44-11` appears at the top of the list and opens.
     - [ ] Given a number that doesn't use WhatsApp, when the user clicks «Начать чат», then they see «На этом номере нет WhatsApp», no chat appears, and the number is still in the field.
+    - [ ] Given Россия +7 is selected, when the user types `123` and clicks «Начать чат», then they see «Неверный номер. Проверьте код страны и номер.» and no chat appears.
     - [ ] Given the WhatsApp check can't be completed, when the user clicks «Начать чат», then they see «Не удалось проверить номер. Попробуйте ещё раз.» and no chat appears.
     - [ ] Given a chat with `+7 903 747-44-11` exists, when the user starts a chat with the same number again, then that existing chat opens and no second entry appears in the list.
     - [ ] When the user picks «Другая страна», types `381` as the code and `629443720` as the number, and the number uses WhatsApp, then a chat titled `+381629443720` opens.
@@ -55,7 +57,7 @@ The interface stays in Russian and as simple as WhatsApp Web.
 
 - An open chat shows the number in its header, the messages as bubbles, and a message box at the bottom with the placeholder «Введите сообщение».
 - Sent messages are light-green bubbles on the right. Each shows the text, its time as `HH:MM`, and a mark: **🕓** while sending; **✅** once GREEN-API has accepted the message for sending (this doesn't mean it was delivered or read); **❗** with «Не отправлено · Повторить» when sending was refused; **❔** with «Статус неизвестен · Повторить» when the outcome is unknown (no answer, the connection dropped while sending, or the page was closed while sending). Clicking «Повторить» sends the same message again and the mark goes back to 🕓. For an unknown-status message, «Повторить» first asks «Сообщение могло уже уйти. Отправить ещё раз?». Nothing is ever resent automatically.
-- Enter sends the message; Shift+Enter adds a new line. A message that's empty or only spaces isn't sent. After sending, the box clears.
+- Enter sends the message exactly as typed; Shift+Enter adds a new line. A message that's empty or only spaces isn't sent. After sending, the box clears. The box accepts at most 20 000 characters (GREEN-API's limit); anything beyond that can't be typed or pasted in.
 - The message box grows with the text up to 6 lines; after that it scrolls inside.
 - The conversation scrolls to the newest message whenever the user sends one.
   - **Acceptance Criteria:**
@@ -65,6 +67,7 @@ The interface stays in Russian and as simple as WhatsApp Web.
     - [ ] When the user presses Shift+Enter between two lines and then Enter, then one bubble shows both lines.
     - [ ] When the user presses Enter in an empty box, or one with only spaces, then nothing is sent.
     - [ ] When the user types 10 lines, then the box stops growing at 6 lines and scrolls inside.
+    - [ ] When the user pastes a text longer than 20 000 characters, then the box keeps only the first 20 000.
 
 ### 2.4. Chats kept across reloads
 
@@ -108,3 +111,4 @@ The interface stays in Russian and as simple as WhatsApp Web.
 _Dated amendments made after the spec was first written — typically by `/awos:spec` in Update Mode when a bug fix changed documented behavior. Each entry records the date, the source reference (bug id or fix description), and what behavior changed and why. Leave empty until the first amendment._
 - 2026-10-06 — review `spec-codex` stage 2 — §2.1: custom code digits only; locked «Проверяем…» while checking. §2.2: empty chats and no-selection placeholder. §2.3: ✅ = accepted by GREEN-API; ❔ «Статус неизвестен» for unknown outcomes, with a confirmation before resending. §2.4: ❔ after reload; per-chat unsent text kept.
 - 2026-10-06 — tech consult open question — §2.1: the new-chat row closes when the chat opens; the number stays only when no chat is created (the earlier "in every case" wording was ambiguous).
+- 2026-10-06 — review `spec-codex` stage 3 — §2.1: «Неверный номер. Проверьте код страны и номер.» for numbers GREEN-API calls invalid; §2.3: text sent exactly as typed; 20 000-character limit in the box.
