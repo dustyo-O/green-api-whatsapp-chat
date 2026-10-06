@@ -30,11 +30,11 @@ The brief ends with: "the recipient replies in the messenger; the user sees the 
 ### 2.2. Replies in other chats and from new contacts
 
 - When a reply arrives in a chat that isn't open, the chat gets a **green badge with the number of unread replies**; opening the chat clears it. The list order and each chat's preview always follow the chat's **latest message by time**: a fresh reply moves its chat to the top, but a reply that was sent long ago (e.g. delivered after the app was closed) doesn't jump above more recent activity.
-- When a reply comes from a number that has no chat yet, a new chat with that number appears at the top, with the badge.
+- When a reply comes from a number that has no chat yet, a new chat with that number appears, with the badge. Like every chat, it's placed by its latest message's time, so a fresh reply puts it at the top.
 - If WhatsApp doesn't reveal the sender's number, the chat is titled with the sender's WhatsApp name, or **«Неизвестный номер»** if there's no name. The reply is never dropped. Later replies from the same hidden sender land in that same chat; two different hidden senders get two separate chats even when both are titled «Неизвестный номер». The user can write back in such a chat like in any other.
   - **Acceptance Criteria:**
     - [ ] Given chat A is open and chat B is lower in the list, when B's contact sends two replies, then B moves to the top showing the last reply and a green badge «2», and when the user opens B, then the badge disappears.
-    - [ ] When a number with no chat sends «Здравствуйте», then a new chat with that number appears at the top with «Здравствуйте» as its preview and the badge «1».
+    - [ ] When a number with no chat sends «Здравствуйте» now, then a new chat with that number appears at the top with «Здравствуйте» as its preview and the badge «1».
     - [ ] Given a reply arrives without the sender's number but with the sender's WhatsApp name «Иван», when the user looks at the list, then a chat titled «Иван» shows the reply.
     - [ ] Given a reply arrives without the sender's number and without a name, when the user looks at the list, then a chat titled «Неизвестный номер» shows the reply.
     - [ ] Given two different senders without a number or name, when each sends a reply, then two separate «Неизвестный номер» chats appear, and when the first sender replies again, then it lands in the first of them.
@@ -95,3 +95,4 @@ The brief ends with: "the recipient replies in the messenger; the user sees the 
 
 _Dated amendments made after the spec was first written — typically by `/awos:spec` in Update Mode when a bug fix changed documented behavior. Each entry records the date, the source reference (bug id or fix description), and what behavior changed and why. Leave empty until the first amendment._
 - 2026-10-06 — review `spec-codex` stage 2 — §2.1: 10 s measured on a normal connection over 5 replies; §2.2: list order and preview follow the latest message by time, hidden senders keep their own chats and can be replied to; §2.4: one tab, duplicate deliveries shown once, backlog ≤ 30 s for ≤ 20 replies, receiving recovers by itself after a dropped connection or slow-down.
+- 2026-10-06 — review `spec-codex` stage 3 — §2.2: new chats are placed by their latest message's time too; "at the top" applies to a fresh reply.

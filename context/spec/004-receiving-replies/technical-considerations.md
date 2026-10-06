@@ -79,9 +79,12 @@ A receive loop polls GREEN-API's notification queue one notification at a time: 
   - the sleep is abortable.
   - The 5 s cap amends architecture §4's "about 30 s" (open question 4), so functional §2.4 c4 can hold ("within 10 s after reconnect").
   - 401/403 don't stop the loop: no banner until Phase 2, and the loop recovers by itself if the instance is re-authorized.
-- **Failed delete:**
-  - network error or 429 → back off, then go back to `receive`. The undeleted head comes back, and dedupe absorbs it;
-  - any other HTTP answer (`result:false`, 500) → move on.
+- **Delete outcomes (review 3 F3):**
+  - **Deleted:** 200 `{result:true}`, 200 `{result:false}` (already gone), or the documented 500 "not found" → move on.
+  - **Anything else** (network, timeout, 429, other 4xx/5xx) → back off, then go back to `receive`. The undeleted head comes back, and dedupe absorbs it.
+  - **The backoff resets only after a successful delete**, never after re-receiving the same head, so a delete that keeps failing waits 1 → 2 → 4 → 5 s and never loops hot.
+- **Reconnect (review 3 F2):** a `window` `online` listener (added and removed with the loop) cancels the current backoff sleep **and** any in-flight request, then polls immediately. Replies sent during an outage then appear within one poll of the connection coming back, instead of after a stalled request's remaining budget.
+- **Unacknowledgeable envelopes (review 3 F4):** a notification with a numeric `receiptId` is always deleted, whatever its body. A receive answer **without** a `receiptId` can't be deleted by anyone (a GREEN-API fault): the loop backs off (5 s cap) and retries, and receiving is effectively stuck. The visible "receiving is stuck" state is **deferred to roadmap Phase 2 "Connection & Authorization States"**, which reuses the loop's error classification.
 - **Two loops:** the effect cleanup aborts the previous one. Under StrictMode, the first `fetch` is aborted before it can answer, and a duplicate receive is harmless at 100 rps. Multi-tab is Phase 2 (Web Locks).
 
 ### 2.5. Store (`src/chat/chats-store.ts`)
@@ -128,7 +131,7 @@ A receive loop polls GREEN-API's notification queue one notification at a time: 
   2. **The empty-queue body:** if it's `""` and isn't handled, the loop would quietly back off forever. *Mitigation:* `allowEmpty`, plus unit tests for `""` and `null`.
   3. **Existing tests break once polling starts** (unhandled requests under `onUnhandledFrame:"error"`; `requests` equality assertions). *Mitigation:* a default MSW handler, "empty queue that waits until aborted", passed to `setupServer`. Receives and deletes are recorded in their own `received` / `deleted` arrays, not in `requests`. All of this lands in the same commit as the loop.
   4. **Loop leaks** (StrictMode, logout races, test module reloads). *Mitigation:* an effect-owned `AbortController`, the session guard before save and before delete, store no-ops after `wipe`; tests for logout mid-poll and abort mid-backoff.
-  5. **A notification that can't be parsed blocking the queue.** *Mitigation:* `toIncoming` never throws, and every received notification is deleted whatever the outcome.
+  5. **A notification that can't be parsed blocking the queue.** *Mitigation:* `toIncoming` never throws, and every notification with a `receiptId` is deleted whatever its body. Without a `receiptId` it can't be deleted; that case is surfaced in Phase 2 (review 3 F4).
   6. **Lid mode on a reviewer's instance** splits chats. *Mitigation:* the README says to keep "Use chat IDs" off; `@lid` chats still work as their own chats.
   7. **Multi-tab duplicates:** accepted until Phase 2 (functional §2.4 promises one tab).
   8. **Local-clock vs server-time skew** can place a reply above the message it answers: accepted.
@@ -161,7 +164,9 @@ A receive loop polls GREEN-API's notification queue one notification at a time: 
   - skipped notifications are still deleted;
   - a redelivery after a failed delete shows once;
   - abort stops everything;
-  - backoff 1 / 2 / 4 / 5 / 5 s and its reset (fake `setTimeout` only).
+  - backoff 1 / 2 / 4 / 5 / 5 s and its reset (fake `setTimeout` only);
+  - a delete that keeps failing (500 other than "not found") backs off and never loops hot (review 3 F3);
+  - an `online` event during a stalled receive cancels it and polls immediately (review 3 F2).
 - **RTL + MSW** (`src/chat/receiving.test.tsx`): one test per functional criterion from §2.1 to §2.4, including the logout case.
 - **No Playwright tests** (user decision 2026-10-06).
 - **`[User]`, needs TKT-5:**
