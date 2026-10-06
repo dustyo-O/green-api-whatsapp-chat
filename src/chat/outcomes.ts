@@ -43,11 +43,7 @@ export async function checkNumber(
     );
     return existsWhatsapp ? "exists" : "notOnWhatsapp";
   } catch (error) {
-    if (
-      error instanceof GreenApiError &&
-      error.status === 400 &&
-      error.text.includes("Bad phone number")
-    ) {
+    if (error instanceof GreenApiError && error.invalidNumber) {
       return "invalidNumber";
     }
     return "checkFailed";

@@ -13,19 +13,22 @@ export type GreenApiErrorKind = "network" | "timeout" | "http" | "badBody";
 export class GreenApiError extends Error {
   readonly kind: GreenApiErrorKind;
   readonly status: number | null;
-  /** The error body as text, read only when the call asks for it (`checkWhatsapp`'s 400). */
-  readonly text: string;
+  /**
+   * A 400 that says the number itself is invalid; decided only when the call asks for it
+   * (`checkWhatsapp`). The body is never kept: GREEN-API echoes the token in its `path`.
+   */
+  readonly invalidNumber: boolean;
 
   constructor(
     kind: GreenApiErrorKind,
     status: number | null = null,
-    text = "",
+    invalidNumber = false,
   ) {
     super(status === null ? kind : `${kind} ${String(status)}`);
     this.name = "GreenApiError";
     this.kind = kind;
     this.status = status;
-    this.text = text;
+    this.invalidNumber = invalidNumber;
   }
 }
 
@@ -36,9 +39,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 interface RequestOptions {
   /** Sent as a JSON POST body; without it the call is a GET. */
   json?: unknown;
-  /** Read the body of a 400 into `GreenApiError.text`. */
+  /** Read the body of a 400 to decide `GreenApiError.invalidNumber`. */
   read400?: boolean;
 }
+
+// Documented wrong-length text, and the real answer for a short chatId (slice-1 probe).
+const INVALID_NUMBER = /Bad phone number|'chatId' must be/;
 
 async function request(
   { idInstance, apiTokenInstance, apiUrl }: Credentials,
@@ -67,11 +73,11 @@ async function request(
   }
   // Status first: GREEN-API's 401/429 say application/json but have an empty body.
   if (!response.ok) {
-    const text =
-      read400 && response.status === 400
-        ? await response.text().catch(() => "")
-        : "";
-    throw new GreenApiError("http", response.status, text);
+    const invalidNumber =
+      read400 &&
+      response.status === 400 &&
+      INVALID_NUMBER.test(await response.text().catch(() => ""));
+    throw new GreenApiError("http", response.status, invalidNumber);
   }
   try {
     return (await response.json()) as unknown;
