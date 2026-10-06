@@ -1,0 +1,292 @@
+// @layer: integration
+// @spec: 004-receiving-replies
+import { delay, http, HttpResponse } from "msw";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  API_URL,
+  deleted,
+  failure,
+  queue,
+  received,
+  server,
+  setupGreenApiServer,
+} from "../test/green-api-server";
+import { storageKey, useChats } from "./chats-store";
+import {
+  CONTACT,
+  groupMessage,
+  outgoingMessageReceived,
+  stickerMessage,
+  textBody,
+  textMessage,
+} from "./notification.fixtures";
+import { runReceiveLoop } from "./receive-loop";
+
+setupGreenApiServer();
+
+const ID = "7103123456";
+const CREDS = {
+  idInstance: ID,
+  apiTokenInstance: "faketoken",
+  apiUrl: API_URL,
+};
+
+const loops: AbortController[] = [];
+
+/** Starts a loop the test can stop; every loop is stopped after the test. */
+function start() {
+  const controller = new AbortController();
+  loops.push(controller);
+  return { controller, done: runReceiveLoop(CREDS, controller.signal) };
+}
+
+const texts = () =>
+  CONTACT in useChats.getState().chats
+    ? useChats.getState().chats[CONTACT].messages.map((m) => m.text)
+    : [];
+
+// Kept before any test fakes `setTimeout`.
+const realSetTimeout = globalThis.setTimeout;
+
+/** Lets MSW's real I/O run without moving fake timers. */
+async function flush() {
+  for (let i = 0; i < 20; i++) {
+    await new Promise((resolve) => realSetTimeout(resolve, 0));
+  }
+}
+
+/** Advances fake time step by step; the receive count after each step. */
+async function receivesAfter(steps: number[]) {
+  await flush();
+  const counts = [received.length];
+  for (const ms of steps) {
+    await vi.advanceTimersByTimeAsync(ms);
+    await flush();
+    counts.push(received.length);
+  }
+  return counts;
+}
+
+beforeEach(() => {
+  useChats.getState().open(ID);
+});
+
+afterEach(async () => {
+  for (const loop of loops.splice(0)) loop.abort();
+  vi.useRealTimers();
+  await flush();
+  useChats.getState().wipe();
+  localStorage.clear();
+});
+
+describe("runReceiveLoop", () => {
+  // @regression — tech §2.4: write before acknowledge, so a reply is never lost
+  it("saves a reply before it deletes it", async () => {
+    const atDelete: (string | null)[] = [];
+    server.use(
+      // Observes, then falls through to the queue's own DELETE.
+      http.delete("*/deleteNotification/*/*", () => {
+        atDelete.push(localStorage.getItem(storageKey(ID)));
+      }),
+    );
+    queue({ receiptId: 1, body: textMessage });
+
+    start();
+
+    await vi.waitFor(() => {
+      expect(deleted).toEqual([1]);
+    });
+    expect(atDelete).toHaveLength(1);
+    expect(atDelete[0]).toContain("F7AEC1B7086ECDC7E6E45923F5EDB825");
+    expect(texts()).toEqual(["Привет-привет"]);
+    expect(received.every((timeout) => timeout === 20)).toBe(true);
+  });
+
+  // @regression — functional §2.4 c5: nothing blocks later replies
+  it("deletes what it skips, in order, and keeps going", async () => {
+    queue(
+      { receiptId: 1, body: groupMessage },
+      { receiptId: 2, body: outgoingMessageReceived },
+      { receiptId: 3, body: { garbage: true } },
+      { receiptId: 4, body: stickerMessage },
+      { receiptId: 5, body: textBody("Текст", { idMessage: "T2" }) },
+    );
+
+    start();
+
+    await vi.waitFor(() => {
+      expect(deleted).toEqual([1, 2, 3, 4, 5]);
+    });
+    expect(Object.keys(useChats.getState().chats)).toEqual([CONTACT]);
+    expect(texts()).toEqual([null, "Текст"]);
+  });
+
+  it("goes on after an empty answer", async () => {
+    queue(null, { receiptId: 1, body: textMessage });
+
+    start();
+
+    await vi.waitFor(() => {
+      expect(texts()).toEqual(["Привет-привет"]);
+    });
+  });
+
+  // @regression — functional §2.4 c3: a redelivery after a failed delete shows once
+  it("shows a reply once when a failed delete delivers it again", async () => {
+    server.use(
+      http.delete("*/deleteNotification/*/*", () => failure(429), {
+        once: true,
+      }),
+    );
+    queue({ receiptId: 1, body: textMessage });
+
+    start();
+
+    await vi.waitFor(
+      () => {
+        expect(deleted).toEqual([1, 1]);
+      },
+      { timeout: 3_000 },
+    );
+    expect(texts()).toEqual(["Привет-привет"]);
+  });
+
+  // @regression — tech §2.4 R4: abort stops everything, also a waiting poll
+  it("stops on abort, during a poll and during a backoff", async () => {
+    const polling = start();
+    await vi.waitFor(() => {
+      expect(received).toHaveLength(1);
+    });
+
+    polling.controller.abort();
+    await polling.done;
+
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    queue(failure(500));
+    const backingOff = start();
+    await flush();
+    expect(received).toHaveLength(2);
+    backingOff.controller.abort();
+    await backingOff.done;
+
+    queue({ receiptId: 1, body: textMessage });
+    await vi.advanceTimersByTimeAsync(10_000);
+    await flush();
+    expect(received).toHaveLength(2);
+    expect(deleted).toEqual([]);
+    expect(texts()).toEqual([]);
+  });
+
+  // @regression — functional §2.4 «Выйти»: a reply received during logout stays queued
+  it("neither saves nor deletes a reply that arrives after logout", async () => {
+    let answer = () => {};
+    const gate = new Promise<void>((resolve) => {
+      answer = resolve;
+    });
+    server.use(
+      http.get("*/receiveNotification/*", async () => {
+        await gate;
+        return HttpResponse.json({ receiptId: 1, body: textMessage });
+      }),
+    );
+    const { done } = start();
+    await vi.waitFor(() => {
+      expect(received).toHaveLength(1);
+    });
+
+    useChats.getState().wipe();
+    answer();
+    await done;
+
+    expect(received).toHaveLength(1);
+    expect(deleted).toEqual([]);
+    expect(localStorage.length).toBe(0);
+  });
+
+  // @regression — tech §2.4: 1 → 2 → 4 → 5 → 5 s on any failure, reset by a successful receive
+  it("backs off 1, 2, 4, 5, 5 seconds, and starts over after a success", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    queue(
+      failure(500),
+      HttpResponse.error(),
+      failure(429),
+      failure(401),
+      HttpResponse.json({ body: {} }), // no receiptId → badBody
+      null,
+      failure(500),
+    );
+
+    start();
+
+    expect(
+      await receivesAfter([
+        999, 1, 1_999, 1, 3_999, 1, 4_999, 1, 4_999, 1, 999, 1,
+      ]),
+    ).toEqual([1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 7, 7, 8]);
+  });
+
+  // @regression — review 3 F3: only a successful delete resets the backoff, so no hot loop
+  it("backs off when a delete keeps failing, re-receiving the same head", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    server.use(http.delete("*/deleteNotification/*/*", () => failure(500)));
+    queue({ receiptId: 1, body: textMessage });
+
+    start();
+
+    expect(
+      await receivesAfter([999, 1, 1_999, 1, 3_999, 1, 4_999, 1, 5_000]),
+    ).toEqual([1, 1, 2, 2, 3, 3, 4, 4, 5, 6]);
+    expect(deleted).toEqual([1, 1, 1, 1, 1, 1]);
+    expect(texts()).toEqual(["Привет-привет"]);
+  });
+
+  // @regression — review 3 F2: back online → poll now, not after a stalled request's budget
+  it("drops a stalled receive and polls at once when the browser is back online", async () => {
+    let stalls = 1;
+    server.use(
+      http.get("*/receiveNotification/*", async () => {
+        if (stalls-- <= 0) return; // falls through to the queue
+        await delay("infinite");
+        return new HttpResponse(null);
+      }),
+    );
+    start();
+    await vi.waitFor(() => {
+      expect(received).toHaveLength(1);
+    });
+    queue({ receiptId: 1, body: textMessage });
+
+    window.dispatchEvent(new Event("online"));
+
+    await vi.waitFor(() => {
+      expect(texts()).toEqual(["Привет-привет"]);
+    });
+  });
+
+  it("cuts a backoff short when the browser is back online", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    queue(HttpResponse.error(), { receiptId: 1, body: textMessage });
+    start();
+    await flush();
+    expect(received).toHaveLength(1);
+
+    window.dispatchEvent(new Event("online"));
+    await flush();
+
+    expect(texts()).toEqual(["Привет-привет"]);
+    expect(deleted).toEqual([1]);
+  });
+
+  it("stops listening for online once stopped", async () => {
+    const add = vi.spyOn(window, "addEventListener");
+    const remove = vi.spyOn(window, "removeEventListener");
+    const { controller, done } = start();
+
+    controller.abort();
+    await done;
+
+    const listener = add.mock.calls.find(([type]) => type === "online")?.[1];
+    expect(listener).toBeDefined();
+    expect(remove).toHaveBeenCalledWith("online", listener);
+  });
+});

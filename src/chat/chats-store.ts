@@ -1,10 +1,12 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import type { Credentials } from "../api/green-api";
+import type { Incoming } from "./notification";
 import { sendText, type SendOutcome } from "./outcomes";
 
 export type MessageStatus = "sending" | "sent" | "failed" | "unknown";
 
+/** A message the user sent (the spec 003 shape). */
 export interface Message {
   id: string;
   direction: "out";
@@ -15,13 +17,33 @@ export interface Message {
   idMessage?: string;
 }
 
+/** A reply from the contact. */
+export interface InMessage {
+  id: string;
+  direction: "in";
+  /** `null` → a type the app can't display yet. */
+  text: string | null;
+  /** Epoch ms, when it was sent. */
+  time: number;
+  idMessage: string;
+  /** Replies have no status mark. */
+  status?: undefined;
+}
+
+export type ChatMessage = Message | InMessage;
+
 export interface Chat {
-  /** `<digits>@c.us`, also the key in `chats`. */
+  /** `<digits>@c.us` (or `<digits>@lid` for a hidden number), also the key in `chats`. */
   id: string;
   /** Epoch ms. */
   createdAt: number;
-  messages: Message[];
+  /** Ordered by `time`. */
+  messages: ChatMessage[];
   draft: string;
+  /** Replies that arrived while the chat wasn't open; missing (spec 003 data) → 0. */
+  unread?: number;
+  /** The sender's WhatsApp name, for `@lid` chats. */
+  title?: string;
 }
 
 export type Chats = Record<string, Chat>;
@@ -37,8 +59,9 @@ interface ChatsState {
   open: (idInstance: string) => void;
   /** Forgets every chat of this instance in this browser. Called by the session store on logout. */
   wipe: () => void;
-  /** Adds the chat if it is missing, then selects it. */
+  /** Adds the chat if it is missing, then selects it (and clears its unread count). */
   addChat: (chatId: string) => void;
+  /** Clears the chat's unread count. */
   select: (chatId: string) => void;
   setDraft: (chatId: string, draft: string) => void;
   /** Appends the message as 🕓, clears the draft, then settles it on GREEN-API's answer. */
@@ -47,6 +70,11 @@ interface ChatsState {
     chatId: string,
     text: string,
   ) => Promise<void>;
+  /**
+   * Saves a reply (synchronously, so it is persisted when this returns): creates the chat if it is
+   * missing, ignores an `idMessage` the chat already has, inserts by time.
+   */
+  receive: (incoming: Incoming) => void;
   /** Sends a ❗/❔ message again: the same bubble goes back to 🕓, then settles. */
   retry: (
     credentials: Credentials,
@@ -61,13 +89,24 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-function isMessage(value: unknown): value is Message {
+function isMessage(value: unknown): value is ChatMessage {
+  if (
+    !isRecord(value) ||
+    typeof value.id !== "string" ||
+    typeof value.time !== "number"
+  ) {
+    return false;
+  }
+  if (value.direction === "in") {
+    return (
+      (typeof value.text === "string" || value.text === null) &&
+      typeof value.idMessage === "string" &&
+      value.status === undefined
+    );
+  }
   return (
-    isRecord(value) &&
-    typeof value.id === "string" &&
     value.direction === "out" &&
     typeof value.text === "string" &&
-    typeof value.time === "number" &&
     typeof value.status === "string" &&
     STATUSES.includes(value.status) &&
     (value.idMessage === undefined || typeof value.idMessage === "string")
@@ -81,7 +120,10 @@ function isChat(id: string, value: unknown): value is Chat {
     typeof value.createdAt === "number" &&
     Array.isArray(value.messages) &&
     value.messages.every(isMessage) &&
-    typeof value.draft === "string"
+    typeof value.draft === "string" &&
+    (value.unread === undefined ||
+      (typeof value.unread === "number" && value.unread >= 0)) &&
+    (value.title === undefined || typeof value.title === "string")
   );
 }
 
@@ -100,7 +142,9 @@ export function restoreChats(persisted: unknown): Chats {
       {
         ...chat,
         messages: chat.messages.map((m) =>
-          m.status === "sending" ? { ...m, status: "unknown" as const } : m,
+          m.direction === "out" && m.status === "sending"
+            ? { ...m, status: "unknown" as const }
+            : m,
         ),
       },
     ]),
@@ -119,8 +163,23 @@ export function sortChats(chats: Chats): Chat[] {
     .sort((a, b) => lastActivity(b) - lastActivity(a));
 }
 
+/** Inserts after the last message sent at or before it, so ties keep arrival order. */
+function insertByTime(
+  messages: ChatMessage[],
+  message: ChatMessage,
+): ChatMessage[] {
+  const at = messages.findLastIndex((m) => m.time <= message.time) + 1;
+  return [...messages.slice(0, at), message, ...messages.slice(at)];
+}
+
 export const storageKey = (idInstance: string) =>
   `green-api-chat:chats:${idInstance}`;
+
+/** The chats with `chatId`'s unread count cleared; the same object if there was nothing to clear. */
+function read(chats: Chats, chatId: string): Chats {
+  const chat = chats[chatId];
+  return chat.unread ? { ...chats, [chatId]: { ...chat, unread: 0 } } : chats;
+}
 
 /** Off only while `open()` forgets the previous instance's chats: that reset must not be saved. */
 let saving = true;
@@ -144,7 +203,7 @@ export const useChats = create<ChatsState>()(
         patchChat(chatId, (chat) => ({
           ...chat,
           messages: chat.messages.map((m) =>
-            m.id !== messageId
+            m.id !== messageId || m.direction !== "out"
               ? m
               : result.outcome === "sent"
                 ? { ...m, status: "sent", idMessage: result.idMessage }
@@ -192,7 +251,7 @@ export const useChats = create<ChatsState>()(
             selectedId: chatId,
             chats:
               chatId in chats
-                ? chats
+                ? read(chats, chatId)
                 : {
                     ...chats,
                     [chatId]: {
@@ -206,8 +265,45 @@ export const useChats = create<ChatsState>()(
         },
 
         select: (chatId) => {
-          if (get().idInstance === null || !(chatId in get().chats)) return;
-          set({ selectedId: chatId });
+          const { idInstance, chats } = get();
+          if (idInstance === null || !(chatId in chats)) return;
+          set({ selectedId: chatId, chats: read(chats, chatId) });
+        },
+
+        receive: ({ chatId, idMessage, time, text, name }) => {
+          const { idInstance, chats, selectedId } = get();
+          if (idInstance === null) return;
+          const chat: Chat =
+            chatId in chats
+              ? chats[chatId]
+              : {
+                  id: chatId,
+                  createdAt: Date.now(),
+                  messages: [],
+                  draft: "",
+                  unread: 0,
+                };
+          if (chat.messages.some((m) => m.idMessage === idMessage)) return;
+          const message: InMessage = {
+            id: crypto.randomUUID(),
+            direction: "in",
+            text,
+            time,
+            idMessage,
+          };
+          set({
+            chats: {
+              ...chats,
+              [chatId]: {
+                ...chat,
+                messages: insertByTime(chat.messages, message),
+                unread: (chat.unread ?? 0) + (chatId === selectedId ? 0 : 1),
+                ...(chatId.endsWith("@lid") && name !== undefined
+                  ? { title: name }
+                  : {}),
+              },
+            },
+          });
         },
 
         setDraft: (chatId, draft) => {
@@ -236,7 +332,7 @@ export const useChats = create<ChatsState>()(
           const message = chat?.messages.find((m) => m.id === messageId);
           if (
             get().idInstance === null ||
-            message === undefined ||
+            message?.direction !== "out" ||
             (message.status !== "failed" && message.status !== "unknown")
           ) {
             return;
@@ -244,7 +340,9 @@ export const useChats = create<ChatsState>()(
           patchChat(chatId, (chat) => ({
             ...chat,
             messages: chat.messages.map((m) =>
-              m.id === messageId ? { ...m, status: "sending" } : m,
+              m.id === messageId && m.direction === "out"
+                ? { ...m, status: "sending" }
+                : m,
             ),
           }));
           settle(
