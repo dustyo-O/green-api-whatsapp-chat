@@ -45,10 +45,10 @@ The GREEN-API client gains two JSON POST calls, `checkWhatsapp` and `sendMessage
 |---|---|
 | 200 `existsWhatsapp: true` | `exists` |
 | 200 `existsWhatsapp: false` | `notOnWhatsapp` |
-| 400 whose body contains `Bad phone number` (review 3 F4) | `invalidNumber` → «Неверный номер. Проверьте код страны и номер.» |
+| 400 whose message contains `Bad phone number` or `'chatId' must be` (review 3 F4; the real short-number body, slice-1 probe 2026-10-06) | `invalidNumber` → «Неверный номер. Проверьте код страны и номер.» |
 | 200 with a bad or missing body; any other 4xx (incl. 466); 429 (no retry); 5xx; `TypeError`; timeout | `checkFailed` |
 
-The 400 body is read only for `checkWhatsapp` (as text; it may be empty or JSON). The slice-1 real probe confirms the exact `Bad phone number` body; if it doesn't carry that text, every 400 falls back to `checkFailed`.
+The 400 body is read only for `checkWhatsapp`, and only to decide `invalidNumber`. **It is never kept**: GREEN-API's 400 JSON echoes the request `path`, which contains the token (slice-1 probe). The error object stores only the decision.
 
 `sendText(creds, chatId, text, {timeoutMs = 15000})` → `sent(idMessage) | failed | unknown`:
 
