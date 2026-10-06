@@ -1,4 +1,4 @@
-// Typed GREEN-API client: only the read-only calls the sign-in check needs.
+// Typed GREEN-API client: the sign-in check calls, the WhatsApp check and sending text.
 // The token is part of the URL path (GREEN-API requires it there); it never goes into logs or errors.
 
 export interface Credentials {
@@ -13,12 +13,19 @@ export type GreenApiErrorKind = "network" | "timeout" | "http" | "badBody";
 export class GreenApiError extends Error {
   readonly kind: GreenApiErrorKind;
   readonly status: number | null;
+  /** The error body as text, read only when the call asks for it (`checkWhatsapp`'s 400). */
+  readonly text: string;
 
-  constructor(kind: GreenApiErrorKind, status: number | null = null) {
+  constructor(
+    kind: GreenApiErrorKind,
+    status: number | null = null,
+    text = "",
+  ) {
     super(status === null ? kind : `${kind} ${String(status)}`);
     this.name = "GreenApiError";
     this.kind = kind;
     this.status = status;
+    this.text = text;
   }
 }
 
@@ -26,16 +33,31 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+interface RequestOptions {
+  /** Sent as a JSON POST body; without it the call is a GET. */
+  json?: unknown;
+  /** Read the body of a 400 into `GreenApiError.text`. */
+  read400?: boolean;
+}
+
 async function request(
   { idInstance, apiTokenInstance, apiUrl }: Credentials,
   method: string,
   signal: AbortSignal,
+  { json, read400 = false }: RequestOptions = {},
 ): Promise<unknown> {
   let response: Response;
   try {
     response = await fetch(
       `${apiUrl}/waInstance${idInstance}/${method}/${apiTokenInstance}`,
-      { signal },
+      json === undefined
+        ? { signal }
+        : {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(json),
+            signal,
+          },
     );
   } catch (error) {
     if (signal.aborted) throw new GreenApiError("timeout");
@@ -44,7 +66,13 @@ async function request(
     throw error;
   }
   // Status first: GREEN-API's 401/429 say application/json but have an empty body.
-  if (!response.ok) throw new GreenApiError("http", response.status);
+  if (!response.ok) {
+    const text =
+      read400 && response.status === 400
+        ? await response.text().catch(() => "")
+        : "";
+    throw new GreenApiError("http", response.status, text);
+  }
   try {
     return (await response.json()) as unknown;
   } catch {
@@ -78,4 +106,37 @@ export async function getSettings(
     throw new GreenApiError("badBody");
   }
   return { webhookUrl: body.webhookUrl, incomingWebhook: body.incomingWebhook };
+}
+
+export async function checkWhatsapp(
+  credentials: Credentials,
+  chatId: string,
+  signal: AbortSignal,
+): Promise<{ existsWhatsapp: boolean }> {
+  const body = await request(credentials, "checkWhatsapp", signal, {
+    json: { chatId },
+    read400: true,
+  });
+  if (!isRecord(body) || typeof body.existsWhatsapp !== "boolean") {
+    throw new GreenApiError("badBody");
+  }
+  return { existsWhatsapp: body.existsWhatsapp };
+}
+
+export async function sendMessage(
+  credentials: Credentials,
+  { chatId, message }: { chatId: string; message: string },
+  signal: AbortSignal,
+): Promise<{ idMessage: string }> {
+  const body = await request(credentials, "sendMessage", signal, {
+    json: { chatId, message },
+  });
+  if (
+    !isRecord(body) ||
+    typeof body.idMessage !== "string" ||
+    body.idMessage === ""
+  ) {
+    throw new GreenApiError("badBody");
+  }
+  return { idMessage: body.idMessage };
 }
