@@ -41,6 +41,21 @@ const badPhoneNumber = () =>
     ),
   );
 
+/** The real 400 for a too-short chatId (slice-1 probe): GREEN-API echoes the token in `path`. */
+const shortChatId = () =>
+  reply("checkWhatsapp", () =>
+    HttpResponse.json(
+      {
+        statusCode: 400,
+        timestamp: "2026-10-06T10:00:00.000Z",
+        path: `/waInstance7103123456/checkWhatsapp/${TOKEN}`,
+        message:
+          "Validation failed. Details: 'chatId' must be one of the next formats: 'phone_number@c.us' or 'chat_id@lid'",
+      },
+      { status: 400 },
+    ),
+  );
+
 // One row per line of tech §2.2, first table.
 const CHECK_CASES: [string, Parameters<typeof server.use>, CheckOutcome][] = [
   ["existsWhatsapp: true", [whatsappExists(true)], "exists"],
@@ -55,6 +70,7 @@ const CHECK_CASES: [string, Parameters<typeof server.use>, CheckOutcome][] = [
     ],
     "invalidNumber",
   ],
+  ["400 «'chatId' must be» (real body)", [shortChatId()], "invalidNumber"],
   ["400 with an empty body", [status("checkWhatsapp", 400)], "checkFailed"],
   [
     "400 with another text",
@@ -238,6 +254,7 @@ describe("client errors", () => {
   // @regression — tech §2.2: errors never carry the token
   it.each([
     ["400 Bad phone number", badPhoneNumber(), "checkWhatsapp"],
+    ["400 with the token in path", shortChatId(), "checkWhatsapp"],
     ["fetch TypeError", unreachable("checkWhatsapp"), "checkWhatsapp"],
     ["timeout", hang("checkWhatsapp"), "checkWhatsapp"],
     ["500", status("sendMessage", 500), "sendMessage"],
@@ -256,8 +273,8 @@ describe("client errors", () => {
     const seen = [
       String(error),
       (error as GreenApiError).stack ?? "",
-      (error as GreenApiError).text,
       JSON.stringify(error),
+      ...Object.values(error as GreenApiError).map(String),
     ].join("\n");
     expect(seen).not.toContain(TOKEN);
   });
