@@ -35,7 +35,7 @@
 
 - [ ] **Slice 4: Ship**
   - [x] Push, open the PR (`feat: sign-in and session`, links tasks.md + reviews/, `Refs: TKT-2`), run `/harness:review-code 002`, fix through the lane, merge with a merge commit once green. Comment the PR on TKT-2. **[Lead]** _(Done 2026-10-06: https://github.com/dustyo-O/green-api-whatsapp-chat/pull/8. GitHub didn't deliver the first `pull_request` event; close + reopen re-fired it. Review 1: F1 (lockfile) rejected as a false positive (the harness hides the lockfile from the reviewer), F2 fixed in Slice F1. Review 2: storage-failure F1 rejected (decided twice). CI green: `check` 41s, `commitlint` 16s. Merged with a merge commit.)_
-  - [ ] On the live site with **fake** credentials, in Chromium and WebKit: the wrong-token message and the unreachable message appear (real GREEN-API answers from `https://dustyo-o.github.io`). **[Lead]**
+  - [x] On the live site with **fake** credentials, in Chromium and WebKit: the wrong-token message and the unreachable message appear (real GREEN-API answers from `https://dustyo-o.github.io`). **[Lead]** _(Done 2026-10-06 on live `a1488c1`, Playwright Chromium 153 + WebKit 26.6: fake `7103000000` → «Неверный idInstance или apiTokenInstance.» (real 401); id `1101000000` with custom `https://7103.api.greenapi.com` → «Не удалось связаться с https://7103.api.greenapi.com. …» (real `TypeError`); «Проверить снова» shown in both.)_
   - [ ] On the live site with your real instance: sign in, reload, log out. Optionally: in the console, set a webhook URL or switch incoming notifications off and check the message, then undo it. **[User]**
 
 - [x] **Slice F1: Code review fixes for PR #8** (review `code-codex-*-1651`)
