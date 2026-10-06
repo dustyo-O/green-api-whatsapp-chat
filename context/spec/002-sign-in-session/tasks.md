@@ -34,7 +34,7 @@
   - [x] Run all generated tests. All must pass. Fix any failures before proceeding. **[Agent: testing-expert]** _(Done 2026-10-06: `check` exit 0, 11 files, 153/153 (was 140); no production files changed. Lead re-ran on the merged tree: 153/153, exit 0.)_
 
 - [ ] **Slice 4: Ship**
-  - [ ] Push, open the PR (`feat: sign-in and session`, links tasks.md + reviews/, `Refs: TKT-2`), run `/harness:review-code 002`, fix through the lane, merge with a merge commit once green. Comment the PR on TKT-2. **[Lead]**
+  - [x] Push, open the PR (`feat: sign-in and session`, links tasks.md + reviews/, `Refs: TKT-2`), run `/harness:review-code 002`, fix through the lane, merge with a merge commit once green. Comment the PR on TKT-2. **[Lead]** _(Done 2026-10-06: https://github.com/dustyo-O/green-api-whatsapp-chat/pull/8. GitHub didn't deliver the first `pull_request` event; close + reopen re-fired it. Review 1: F1 (lockfile) rejected as a false positive (the harness hides the lockfile from the reviewer), F2 fixed in Slice F1. Review 2: storage-failure F1 rejected (decided twice). CI green: `check` 41s, `commitlint` 16s. Merged with a merge commit.)_
   - [ ] On the live site with **fake** credentials, in Chromium and WebKit: the wrong-token message and the unreachable message appear (real GREEN-API answers from `https://dustyo-o.github.io`). **[Lead]**
   - [ ] On the live site with your real instance: sign in, reload, log out. Optionally: in the console, set a webhook URL or switch incoming notifications off and check the message, then undo it. **[User]**
 

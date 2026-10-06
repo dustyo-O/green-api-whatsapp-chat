@@ -72,3 +72,4 @@ Likely cause: GREEN-API rate limit (~1 req/s per method, 429 with empty body) �
 **Comments**
 - 2026-10-06 — user: small fix in spec 002 slice 2 — on a 429, wait ~1 s and retry once inside the 15 s budget (tech §2.2 amended, task added to slice 2) → In Progress.
 - 2026-10-06 — fixed in spec 002 slice 2 (`5653179`): one retry after a 429, inside the 15 s budget. Ships with the TKT-2 PR.
+- 2026-10-06 — PR #8: https://github.com/dustyo-O/green-api-whatsapp-chat/pull/8 → In Review → merged (code review: lockfile false positive rejected, URL syntax fixed, storage-failure rejected).

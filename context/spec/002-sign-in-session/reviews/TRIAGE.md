@@ -24,3 +24,11 @@
 |---|---|---|---|---|
 | F1 | major | rejected: false positive | `git diff main...HEAD -- package-lock.json` = +396/−3 with zustand, msw and user-event present; PR #8 CI `check` (runs `npm ci`) passed, run 37482688795. The reviewer never saw the lockfile: `second-opinion.sh` excludes `package-lock.json` from its diff (harness gap). | — |
 | F2 | minor | accepted | Spec compliance §2.1: `https:example.com` and `https://example.com/base/..` pass because only the parsed URL is checked. Fix: also check the typed text (scheme + host [+ port] + optional `/`), plus regression tests. | tasks.md Slice F1 |
+
+## Code review 2026-10-06 — code-codex-20261006-1658.md (codex · effort low · PR #8 after Slice F1) — verdict: SHIP WITH FIXES
+
+The previous review's F2 is fixed (`dbf3f29`); no remaining findings on it.
+
+| # | severity | verdict | rationale | applied in |
+|---|---|---|---|---|
+| F1 | major | rejected: decided twice already | Storage write failures were triaged out in stage 2 (F3) and stage 3 (F3); functional §3 lists them out of scope. Writes only throw when storage is refused or the quota is full; all target browsers incl. Safari private mode allow writes, and the session is a few hundred bytes. User rule: avoid overengineering. Fix cost noted (~5 lines + test) in case the user overrules. | — |
