@@ -79,6 +79,11 @@ describe("validation", () => {
     ["https://x?", false],
     ["https://x/#y", false],
     ["https://user:pass@x", false],
+    // review F2: the typed text itself must be scheme + host, not just what new URL() makes of it
+    ["https://7107.api.greenapi.com", true],
+    ["https://7107.api.greenapi.com/", true],
+    ["https:example.com", false],
+    ["https://example.com/base/..", false],
   ])("API URL %j valid: %s", (url, valid) => {
     expect(isValidApiUrl(url)).toBe(valid);
   });

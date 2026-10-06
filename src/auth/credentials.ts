@@ -38,9 +38,13 @@ export function isValidIdInstance(value: string): boolean {
   return /^\d+$/.test(value);
 }
 
+/** The typed text itself: `https://` + host (+ `:port`) + an optional single `/`. */
+const PLAIN_API_URL = /^https:\/\/[^/\\?#@:\s]+(:\d+)?\/?$/;
+
 /** Scheme + host (+ port) only: `https://7103.api.greenapi.com`, no path, `?` or `#`. */
 export function isValidApiUrl(value: string): boolean {
-  if (/[?#]/.test(value)) return false;
+  // new URL() forgives `https:host` and resolves `/base/..`, so check the text too.
+  if (!PLAIN_API_URL.test(value.trim())) return false;
   try {
     const url = new URL(value);
     return (
