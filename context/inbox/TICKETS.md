@@ -139,3 +139,20 @@ Incoming text messages appear in the right chat within 10 seconds; a text from a
   - Slice 2: Replies in the UI
   - Slice 3: Feature Testing & Regression
   - Slice 4: Ship (real reply check waits on TKT-5)
+
+---
+
+## TKT-7 — Same-second replies can order chats wrongly
+
+- **type:** bug · **state:** Backlog · **created:** 2026-10-07 · **related:** TKT-6
+
+**Description**
+
+ticket the same-second chat ordering issue
+
+Context: spec 004 receiving-replies, slice 2 (verify) · branch feat/TKT-6-receiving-replies
+Repro: two replies in different chats with the same GREEN-API `timestamp` (whole seconds) → `sortChats` breaks the tie by chat age, so the chat that got the later reply can end up below the other.
+Found while: verifying TKT-6
+Not a spec failure (functional §2.2 orders by latest message time; equal times are unspecified). Possible fix: break ties by arrival order.
+
+**Comments**
