@@ -22,7 +22,7 @@ A receive loop polls GREEN-API's notification queue one notification at a time: 
 ### 2.1. GREEN-API contracts (docs + probes, 2026-10-06)
 
 - **`receiveNotification`:**
-  - Call: `GET {apiUrl}/waInstance{id}/receiveNotification/{token}?receiveTimeout=20` (allowed range 5–60 s).
+  - Call: `GET {apiUrl}/waInstance{id}/receiveNotification/{token}?receiveTimeout=5` (allowed range 5–60 s; 5 s chosen so recovery fits §2.4's 10 s, code review 3 F1).
   - An empty queue gives an **empty response**: treat both `""` and `null` as "nothing". The exact bytes get confirmed in slice 1.
   - A notification comes back as `{ receiptId: number, body }`.
   - The queue is FIFO, and its head stays until it's deleted. Notifications are kept for 24 h.
@@ -68,7 +68,7 @@ A receive loop polls GREEN-API's notification queue one notification at a time: 
 
 - **Started by** a `useEffect` in `MainScreen.tsx`, which is mounted exactly while signed in, after `open()`. It creates an `AbortController` and calls `runReceiveLoop(creds, signal)`; the effect's cleanup aborts it. A module-level start would leak across `vi.resetModules()` in tests.
 - **Cycle:**
-  1. `receive` with a 30 s budget (20 s long poll + 10 s), using the existing `withBudget` setTimeout pattern.
+  1. `receive` with an **8 s** budget (**5 s** long poll + 3 s), using the existing `withBudget` setTimeout pattern. (Was 20 s + 10 s; code review 3 F1: a stalled poll after an upstream cut, with no `online` event, must still recover within 10 s.)
   2. `null` → loop again.
   3. `toIncoming` → if it's a message, `useChats.getState().receive(...)`. This is a synchronous `set`, so localStorage is written before the call returns.
   4. `deleteNotification` (15 s budget), then loop.

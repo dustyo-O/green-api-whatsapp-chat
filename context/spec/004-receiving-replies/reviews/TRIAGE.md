@@ -37,3 +37,11 @@ Review 1's F1 is fixed (`e1a2772`); no findings on it.
 | F1 | major | accepted | Appending outgoing messages breaks the sorted-list invariant that `insertByTime` relies on; use it for outgoing too; one test. | tasks.md Slice F2 |
 | F2 | major | accepted | Data safety: an overflowing `timestamp` (e.g. 1e308) becomes `Infinity` → `null` in JSON → every saved chat rejected on reload. Validate ms as a safe integer within the Date range, else delete and skip; overflow test. | tasks.md Slice F2 |
 | F3 | minor | accepted | Functional §2.3 says "a grey bubble"; the placeholder needs a grey bubble background, not just muted text. | tasks.md Slice F2 |
+
+## Code review 2026-10-07 — code-codex-20261007-0137.md (codex · effort low · PR #12 after Slice F2) — verdict: SHIP WITH FIXES
+
+Review 2's F1–F3 are fixed (`8933627`, `20c7301`, `0b13a37`); no findings on them.
+
+| # | severity | verdict | rationale | applied in |
+|---|---|---|---|---|
+| F1 | major | accepted | `online` only fires when the browser itself goes offline; an upstream cut leaves a stalled poll for its 30 s budget, breaking §2.4's 10 s. Constants only: `receiveTimeout` 5 s (GREEN-API minimum), request budget 8 s, so stall + 1 s backoff + immediate answer fits in 10 s. Reply latency is unchanged (a long poll returns on arrival); about 0.2 rps vs a 100 rps limit. Stall-recovery test without `online`. | tasks.md Slice F3; tech §2.4 |
