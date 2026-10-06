@@ -7,9 +7,13 @@ import type { Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   API_URL,
+  deleted,
+  failure,
+  posted,
   queue,
   ready,
   received,
+  sentAs,
   server,
   setupGreenApiServer,
 } from "../test/green-api-server";
@@ -18,6 +22,7 @@ import {
   lidWithName,
   lidWithoutName,
   outgoingMessageReceived,
+  reactionMessage,
   stickerMessage,
   textBody,
   webhook,
@@ -544,5 +549,131 @@ describe("§2.4 no reply is lost or shown twice", () => {
     await vi.waitFor(() => {
       expect(row("+7 903 747-44-11").textContent).toContain("После выхода");
     });
+  });
+});
+
+describe("the whole feature (acceptance)", () => {
+  const NEW = "77011234567@c.us";
+
+  // @regression — functional §2.1 c2, §2.2 c1/c2, §2.3 c1–c3, §2.4 c1–c3/c5 as one journey
+  it("shows a 20-reply backlog after sign-in in the right chats, once each, and again once after a reload", async () => {
+    saveChats({ [RU]: chat(RU, 2_000, [sent("Привет", at(8, 0))]) });
+    const answers = Array.from({ length: 18 }, (_, i) =>
+      reply(`Ответ ${String(i + 1)}`, { time: at(9, i + 1) }),
+    );
+    const [first, second, ...rest] = answers;
+    queue(
+      second, // delivered before the one sent earlier
+      notification(groupMessage),
+      first,
+      notification(outgoingMessageReceived),
+      notification(reactionMessage),
+      { receiptId: ++receipts, body: "not a notification" },
+      { ...first, receiptId: ++receipts }, // the same reply delivered twice
+      ...rest,
+      notification(
+        webhook(
+          { typeMessage: "stickerMessage" },
+          { idMessage: "S1", timestamp: at(9, 19) / 1000 },
+        ),
+      ),
+      reply("Здравствуйте", { chatId: NEW, time: at(9, 30) }),
+    );
+    server.use(...ready());
+    await loadPage();
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("idInstance"), ID);
+    await user.type(screen.getByLabelText("apiTokenInstance"), "faketoken");
+    await user.click(screen.getByRole("button", { name: "Войти" }));
+
+    await vi.waitFor(() => {
+      expect(titles()).toEqual(["+7 701 123-45-67", "+7 903 747-44-11"]);
+    });
+    await vi.waitFor(() => {
+      expect(badge("+7 903 747-44-11")?.textContent).toBe("19");
+    });
+    expect(badge("+7 701 123-45-67")?.textContent).toBe("1");
+    expect(row("+7 701 123-45-67").textContent).toContain("Здравствуйте");
+    expect(row("+7 903 747-44-11").textContent).toContain(PLACEHOLDER);
+    const expected = [
+      "Привет",
+      ...answers.map((_, i) => `Ответ ${String(i + 1)}`),
+      PLACEHOLDER,
+    ];
+    await user.click(row("+7 903 747-44-11"));
+    expect(bubbles().map((b) => b.firstChild?.textContent)).toEqual(expected);
+    expect(bubbles().slice(1).every(isIncoming)).toBe(true);
+    expect(screen.queryByText("👍")).toBeNull();
+    expect(screen.queryByText("С телефона")).toBeNull();
+    expect(screen.queryByText("Всем привет")).toBeNull();
+
+    await openPage();
+    const again = { ...answers[17], receiptId: ++receipts };
+    queue(again);
+    await vi.waitFor(() => {
+      expect(deleted).toContain(again.receiptId);
+    });
+    await user.click(row("+7 903 747-44-11"));
+    expect(bubbles().map((b) => b.firstChild?.textContent)).toEqual(expected);
+  });
+
+  // @regression — functional §2.2: a hidden sender can be written back to, and stays one chat
+  it("replies in a «Неизвестный номер» chat to the hidden sender, whose next reply lands below", async () => {
+    server.use(sentAs("BAE5"));
+    signedIn();
+    await openPage();
+    queue(notification(lidWithoutName));
+    await vi.waitFor(() => {
+      expect(titles()).toEqual(["Неизвестный номер"]);
+    });
+    const user = userEvent.setup();
+    await user.click(row("Неизвестный номер"));
+
+    await user.type(
+      screen.getByPlaceholderText("Введите сообщение"),
+      "Кто это?{Enter}",
+    );
+    await vi.waitFor(() => {
+      expect(posted).toHaveLength(1);
+    });
+    expect(posted[0].body).toEqual({
+      chatId: "155508384256028@lid",
+      message: "Кто это?",
+    });
+
+    queue(
+      notification(
+        textBody("Это Иван", {
+          chatId: "155508384256028@lid",
+          idMessage: "LID-2",
+          timestamp: Math.floor(Date.now() / 1000) + 60,
+          senderData: { senderName: "", senderContactName: "", chatName: "" },
+        }),
+      ),
+    );
+
+    await within(messageList()).findByText("Это Иван");
+    expect(titles()).toEqual(["Неизвестный номер"]);
+    expect(bubbles().map((b) => b.firstChild?.textContent)).toEqual([
+      "Привет",
+      "Кто это?",
+      "Это Иван",
+    ]);
+  });
+
+  // @regression — functional §2.4: GREEN-API refusing or slowing down never stops receiving
+  it("keeps receiving after 401, 429 and 500 answers and shows the next reply within 10 s", async () => {
+    vi.useFakeTimers({
+      toFake: ["setTimeout", "clearTimeout"],
+      shouldAdvanceTime: true,
+    });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    await openRuChat(user);
+
+    queue(failure(401), failure(429), failure(500), reply("После паузы"));
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(within(messageList()).getByText("После паузы")).toBeDefined();
+    expect(received.length).toBeGreaterThanOrEqual(4);
   });
 });
