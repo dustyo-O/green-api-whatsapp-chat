@@ -75,3 +75,18 @@ Likely cause: GREEN-API rate limit (~1 req/s per method, 429 with empty body) �
 - 2026-10-06 — fixed in spec 002 slice 2 (`5653179`): one retry after a 429, inside the 15 s budget. Ships with the TKT-2 PR.
 - 2026-10-06 — PR #8: https://github.com/dustyo-O/green-api-whatsapp-chat/pull/8 → In Review → merged (code review: lockfile false positive rejected, URL syntax fixed, storage-failure rejected).
 - 2026-10-06 — shipped in PR #8 (`a1488c1`); fast reloads confirmed fine by the user on live → **Done**.
+
+---
+
+## TKT-4 — Chats & sending
+
+- **type:** feature · **state:** In Progress · **created:** 2026-10-06
+- **roadmap:** Phase 1 → "Chats & Sending"
+
+**Description**
+
+WhatsApp Web-style chat layout; start a chat by the recipient's phone number; send text messages with sending/sent/failed status and manual retry; chats kept across reloads.
+
+**Comments**
+
+- 2026-10-06 — `/harness:feature` started; stage 0 (grill) running.
