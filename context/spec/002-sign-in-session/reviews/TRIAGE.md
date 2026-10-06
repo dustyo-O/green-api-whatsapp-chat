@@ -17,3 +17,10 @@
 | F2 | major | accepted | Docs give `webhookUrl` as a string; missing or non-string → `unknown`. Relax only if the real instance shows `null`. | tech §2.2, risk 1 |
 | F3 | major | rejected: already decided in stage 2 | Same issue as stage-2 F3: storage write failures are out of scope (functional §3); all target browsers allow writes; user rule: avoid overengineering. | — |
 | F4 | minor | accepted (wording) | Timing: "usually ≤ 5 s on a normal connection, at most 15 s". | functional §2.2 c1 |
+
+## Code review 2026-10-06 — code-codex-20261006-1650.md (codex · effort low · PR #8) — verdict: SHIP WITH FIXES
+
+| # | severity | verdict | rationale | applied in |
+|---|---|---|---|---|
+| F1 | major | rejected: false positive | `git diff main...HEAD -- package-lock.json` = +396/−3 with zustand, msw and user-event present; PR #8 CI `check` (runs `npm ci`) passed, run 37482688795. The reviewer never saw the lockfile: `second-opinion.sh` excludes `package-lock.json` from its diff (harness gap). | — |
+| F2 | minor | accepted | Spec compliance §2.1: `https:example.com` and `https://example.com/base/..` pass because only the parsed URL is checked. Fix: also check the typed text (scheme + host [+ port] + optional `/`), plus regression tests. | tasks.md Slice F1 |

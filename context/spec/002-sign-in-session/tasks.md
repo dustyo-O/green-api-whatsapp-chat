@@ -37,3 +37,7 @@
   - [ ] Push, open the PR (`feat: sign-in and session`, links tasks.md + reviews/, `Refs: TKT-2`), run `/harness:review-code 002`, fix through the lane, merge with a merge commit once green. Comment the PR on TKT-2. **[Lead]**
   - [ ] On the live site with **fake** credentials, in Chromium and WebKit: the wrong-token message and the unreachable message appear (real GREEN-API answers from `https://dustyo-o.github.io`). **[Lead]**
   - [ ] On the live site with your real instance: sign in, reload, log out. Optionally: in the console, set a webhook URL or switch incoming notifications off and check the message, then undo it. **[User]**
+
+- [ ] **Slice F1: Code review fixes for PR #8** (review `code-codex-*-1651`)
+  - [ ] Review F2: in `src/auth/credentials.ts`, make `isValidApiUrl` also require the **trimmed typed text** to match `https://` + host (+ optional `:port`) + an optional single trailing `/`, with no path, `?` or `#`, alongside the existing `new URL()` checks. Add regression cases to `credentials.test.ts`: `https:example.com` and `https://example.com/base/..` are invalid; `https://7107.api.greenapi.com` and `https://7107.api.greenapi.com/` stay valid. RED proof. **[Agent: react-frontend]**
+  - [ ] Verify: `npm run check` green. **[Agent: react-frontend]**
