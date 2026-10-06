@@ -99,7 +99,7 @@ describe("runReceiveLoop", () => {
     expect(atDelete).toHaveLength(1);
     expect(atDelete[0]).toContain("F7AEC1B7086ECDC7E6E45923F5EDB825");
     expect(texts()).toEqual(["Привет-привет"]);
-    expect(received.every((timeout) => timeout === 20)).toBe(true);
+    expect(received.every((timeout) => timeout === 5)).toBe(true);
   });
 
   // @regression — functional §2.4 c5: nothing blocks later replies
@@ -319,6 +319,32 @@ describe("runReceiveLoop", () => {
     await vi.waitFor(() => {
       expect(texts()).toEqual(["Привет-привет"]);
     });
+  });
+
+  // @regression — code review 3 F1: a poll that stalls with no `online` event recovers within 10 s
+  it("gives up on a stalled receive after 8 s and saves the next reply within 10 s", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    let stalls = 1;
+    server.use(
+      http.get("*/receiveNotification/*", async () => {
+        if (stalls-- <= 0) return; // falls through to the queue
+        await delay("infinite");
+        return new HttpResponse(null);
+      }),
+    );
+    start();
+    await flush();
+    expect(received).toHaveLength(1);
+    queue({ receiptId: 1, body: textMessage });
+
+    // The 8 s budget, then the 1 s backoff, then an immediate answer.
+    for (const ms of [8_000, 1_000, 1_000]) {
+      await vi.advanceTimersByTimeAsync(ms);
+      await flush();
+    }
+
+    expect(texts()).toEqual(["Привет-привет"]);
+    expect(deleted).toEqual([1]);
   });
 
   it("cuts a backoff short when the browser is back online", async () => {

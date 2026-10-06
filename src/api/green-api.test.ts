@@ -65,12 +65,12 @@ describe("receiveNotification", () => {
   it("long-polls the queue with GET and receiveTimeout", async () => {
     const seen = receiveAnswers(() => new HttpResponse(""));
 
-    await receiveNotification(CREDENTIALS, 20, signal());
+    await receiveNotification(CREDENTIALS, 5, signal());
 
     expect(seen.map((r) => [r.method, r.url])).toEqual([
       [
         "GET",
-        `${API_URL}/waInstance7103123456/receiveNotification/${TOKEN}?receiveTimeout=20`,
+        `${API_URL}/waInstance7103123456/receiveNotification/${TOKEN}?receiveTimeout=5`,
       ],
     ]);
   });
@@ -89,14 +89,14 @@ describe("receiveNotification", () => {
   ])("gives null for %s", async (_, answer) => {
     receiveAnswers(answer);
 
-    expect(await receiveNotification(CREDENTIALS, 20, signal())).toBeNull();
+    expect(await receiveNotification(CREDENTIALS, 5, signal())).toBeNull();
   });
 
   it("gives the receiptId and the body", async () => {
     const body = { typeWebhook: "incomingMessageReceived" };
     receiveAnswers(() => HttpResponse.json({ receiptId: 7, body }));
 
-    expect(await receiveNotification(CREDENTIALS, 20, signal())).toEqual({
+    expect(await receiveNotification(CREDENTIALS, 5, signal())).toEqual({
       receiptId: 7,
       body,
     });
@@ -110,7 +110,7 @@ describe("receiveNotification", () => {
     receiveAnswers(() => HttpResponse.json(answer));
 
     const error = await rejection(
-      receiveNotification(CREDENTIALS, 20, signal()),
+      receiveNotification(CREDENTIALS, 5, signal()),
     );
 
     expect(error.kind).toBe("badBody");
@@ -120,7 +120,7 @@ describe("receiveNotification", () => {
     receiveAnswers(() => failure(401));
 
     const error = await rejection(
-      receiveNotification(CREDENTIALS, 20, signal()),
+      receiveNotification(CREDENTIALS, 5, signal()),
     );
 
     expect([error.kind, error.status]).toEqual(["http", 401]);
