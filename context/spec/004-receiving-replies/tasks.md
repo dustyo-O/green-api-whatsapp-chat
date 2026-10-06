@@ -1,0 +1,35 @@
+# Tasks — spec 004 Receiving Replies (TKT-6)
+
+- Functional: [functional-spec.md](functional-spec.md) · Technical: [technical-considerations.md](technical-considerations.md) · Reviews: [reviews/TRIAGE.md](reviews/TRIAGE.md)
+- Branch: `feat/TKT-6-receiving-replies`. Lanes: `react-frontend` (gate `npm run check`), `testing-expert` (test files only). One PR at the end.
+- Real replies need a linkable WhatsApp account (**TKT-5**). Until then everything is built and tested against doc-based fixtures in MSW.
+
+## Standing rules
+
+- Run `npm ci` first in every fresh worktree.
+- Never put real GREEN-API credentials or real phone numbers in code, tests, fixtures, logs or commits. **Never read or keep GREEN-API error bodies** (they echo the token).
+- No new dependencies. Tests are Vitest + RTL + MSW only, **no Playwright tests** in the repo (user decision 2026-10-06).
+- MSW `server.listen()` per test file. **The default "empty queue that waits until aborted" receive handler and the separate `received`/`deleted` arrays land in the same commit as the loop**, so existing suites keep passing (tech §3 risk 3).
+- The Russian texts exactly as in the functional spec. Conventional Commits. Keep it minimal (user rule).
+
+---
+
+- [ ] **Slice 1: Receive pipeline, no UI**
+  - [ ] Client (tech §2.2: path suffix, `DELETE`, `allowEmpty`, `receiveNotification`, `deleteNotification`), `src/chat/notification.ts` + `notification.fixtures.ts` (tech §2.3, incl. the reaction trap and `quotedMessage` as text), the store changes (tech §2.5: the `InMessage` union, `unread`, `title`, `receive()`, `select`/`addChat` clearing unread, the lenient `merge` at `version: 1`), and `src/chat/receive-loop.ts` (tech §2.4: one at a time, save before delete, the session guard, backoff 1/2/4/5 s, the delete-outcome rule with backoff reset only by a successful delete, the `online` listener, abortable). Start it from a `useEffect` in `MainScreen.tsx`. MSW: the default waiting handler, `queue(...)`, DELETE popping the head, `received`/`deleted` arrays. Unit + loop tests as in tech §4 (incl. "saved before delete" checked inside the DELETE handler, a hot-loop guard, `online` during a stalled receive, spec 003 data without `unread` merging), with RED proof. **[Agent: react-frontend]**
+  - [ ] Verify: `npm run check` green, with **all existing suites unchanged and passing**. **[Agent: react-frontend]**
+  - [ ] Merge, run the gate, then give the user a token-safe `curl` for reading their queue once with `receiveNotification?receiveTimeout=5` (no delete). **[Lead]**
+  - [ ] Optional, works even while the instance is logged out: run the `curl` and paste back the HTTP status and the body length/shape (an empty body or JSON; a real notification is fine to paste, it contains no token). This settles the real "empty queue" bytes. **[User]**
+
+- [ ] **Slice 2: Replies in the UI**
+  - [ ] `Conversation` (incoming left bubbles with `--color-bubble-in`, `HH:MM`, no mark or retry; the muted italic placeholder «Сообщение этого типа пока не поддерживается» from one shared constant; header via `chatTitle`), `ChatList` (`chatTitle`, a placeholder-aware preview, the green unread badge with `aria-label="N непрочитанных"`), `phone.ts` `chatTitle`, and the new tokens in `src/index.css` (tech §2.6). RTL + MSW tests in `src/chat/receiving.test.tsx` for functional §2.1–§2.4 (one per criterion, incl. logout stopping receiving and the late-reply ordering), with RED proof. **[Agent: react-frontend]**
+  - [ ] Verify: `npm run check` green. With `verify-ui` on `npm run dev` (GREEN-API stubbed with `page.route`: a queue with a text reply, a sticker and a reply from a new number; fake ids): a white left bubble, the placeholder bubble, a new chat with badge «1» that clears on opening; light and dark, no overflow at 1280×800. Delete screenshots, stop the server. **[Agent: react-frontend]**
+
+- [ ] **Slice 3: Feature Testing & Regression**
+
+  > Verifies the whole feature end-to-end against functional-spec.md, run after all implementation slices are complete.
+  - [ ] Read functional-spec.md acceptance criteria in full. Generate acceptance-level tests that verify the entire feature as a whole — not individual slices. Cover applicable layers (unit for pure logic, integration for service interactions, e2e for user flows) based on the project's testing stack. Write tests with RED validation (must fail before implementation is confirmed done). Annotate each test with `@spec: 004-receiving-replies` and `@regression` if suitable for long-term regression. **[Agent: testing-expert]**
+  - [ ] Run all generated tests. All must pass. Fix any failures before proceeding. **[Agent: testing-expert]**
+
+- [ ] **Slice 4: Ship**
+  - [ ] Push and open the PR (`feat: receiving replies`, links tasks.md + reviews/, `Refs: TKT-6`). **Confirm `gh pr checks` lists passing `check` + `commitlint` on the head commit before merging.** Run `/harness:review-code 004`, fix through the lane, merge with a merge commit. Comment the PR on TKT-6. **[Lead]**
+  - [ ] Once a linkable WhatsApp account exists (TKT-5): on the live site, open the chat with your second number, reply «Привет-привет» from that phone → it appears on the left within 10 s; reply from a new number → a new chat with a badge; send a sticker → the placeholder. **[User]**
