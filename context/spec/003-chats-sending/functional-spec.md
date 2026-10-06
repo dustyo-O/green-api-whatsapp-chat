@@ -22,9 +22,10 @@ The interface stays in Russian and as simple as WhatsApp Web.
 ### 2.1. Starting a chat
 
 - The left column's header has a **«+»** button. It opens a row at the top of the chat list with a **country picker**, a **phone number field** and a **«Начать чат»** button.
-- The country picker lists: 🇷🇺 Россия +7 (selected by default), 🇰🇿 Казахстан +7, 🇧🇾 Беларусь +375, 🇺🇦 Украина +380, 🇺🇿 Узбекистан +998, 🇦🇲 Армения +374, 🇬🇪 Грузия +995, 🇷🇸 Сербия +381, 🇹🇷 Турция +90, 🇩🇪 Германия +49, 🇺🇸 США +1, and **«Другая страна»**. Choosing «Другая страна» shows a small field for the country code.
+- The country picker lists: 🇷🇺 Россия +7 (selected by default), 🇰🇿 Казахстан +7, 🇧🇾 Беларусь +375, 🇺🇦 Украина +380, 🇺🇿 Узбекистан +998, 🇦🇲 Армения +374, 🇬🇪 Грузия +995, 🇷🇸 Сербия +381, 🇹🇷 Турция +90, 🇩🇪 Германия +49, 🇺🇸 США +1, and **«Другая страна»**. Choosing «Другая страна» shows a small field for the country code (digits only, at least one).
 - The user types the number **without the country code** (for Russia: `9037474411`). Spaces, brackets and dashes are ignored. «Начать чат» is active once the number contains at least one digit and nothing but digits after those characters are removed. There's no check on how many digits there are.
 - Pressing Enter in the number field is the same as clicking «Начать чат».
+- While the WhatsApp check is running, the picker, the field and the button are locked, and the button reads «Проверяем…».
 - If a chat with that number already exists, it simply opens.
 - Otherwise the app first checks that the number uses WhatsApp:
   - if it does, the chat is created, appears at the top of the list, and opens;
@@ -40,11 +41,12 @@ The interface stays in Russian and as simple as WhatsApp Web.
     - [ ] Given a chat with `+7 903 747-44-11` exists, when the user starts a chat with the same number again, then that existing chat opens and no second entry appears in the list.
     - [ ] When the user picks «Другая страна», types `381` as the code and `629443720` as the number, and the number uses WhatsApp, then a chat titled `+381629443720` opens.
     - [ ] When the user types letters into the number field, then «Начать чат» stays inactive.
+    - [ ] While the WhatsApp check is running, when the user tries to edit the number or click again, then nothing changes and the button reads «Проверяем…».
 
 ### 2.2. Chat list
 
-- Each chat in the list shows the number, its last message cut to one line, and the time of that message. The newest activity is at the top. Numbers starting with +7 are shown as `+7 903 747-44-11`; all other numbers are shown as `+` and the digits, e.g. `+381629443720`.
-- Clicking a chat opens it in the right area and highlights it in the list. With no chats yet, the list shows «Нет чатов. Нажмите «+», чтобы начать».
+- Each chat in the list shows the number, its last message cut to one line, and the time of that message. The newest activity is at the top. A new chat with no messages yet shows no preview and no time, and is placed by when it was created. Numbers starting with +7 are shown as `+7 903 747-44-11`; all other numbers are shown as `+` and the digits, e.g. `+381629443720`.
+- Clicking a chat opens it in the right area and highlights it in the list. With no chats yet, the list shows «Нет чатов. Нажмите «+», чтобы начать». While no chat is open, the right area shows «Выберите чат, чтобы начать переписку».
   - **Acceptance Criteria:**
     - [ ] Given two chats, when the user sends a message in the one lower in the list, then that chat moves to the top and shows the message and its time.
     - [ ] Given no chats, when the user looks at the left column, then they see «Нет чатов. Нажмите «+», чтобы начать».
@@ -52,23 +54,25 @@ The interface stays in Russian and as simple as WhatsApp Web.
 ### 2.3. Conversation and sending
 
 - An open chat shows the number in its header, the messages as bubbles, and a message box at the bottom with the placeholder «Введите сообщение».
-- Sent messages are light-green bubbles on the right. Each shows the text, its time as `HH:MM`, and a mark: **🕓** while sending, **✅** once sent, **❗** if sending failed. A failed message also shows «Не отправлено · Повторить». Clicking «Повторить» sends the same message again, and the mark goes back to 🕓. Nothing is ever resent automatically.
+- Sent messages are light-green bubbles on the right. Each shows the text, its time as `HH:MM`, and a mark: **🕓** while sending; **✅** once GREEN-API has accepted the message for sending (this doesn't mean it was delivered or read); **❗** with «Не отправлено · Повторить» when sending was refused; **❔** with «Статус неизвестен · Повторить» when the outcome is unknown (no answer, the connection dropped while sending, or the page was closed while sending). Clicking «Повторить» sends the same message again and the mark goes back to 🕓. For an unknown-status message, «Повторить» first asks «Сообщение могло уже уйти. Отправить ещё раз?». Nothing is ever resent automatically.
 - Enter sends the message; Shift+Enter adds a new line. A message that's empty or only spaces isn't sent. After sending, the box clears.
 - The message box grows with the text up to 6 lines; after that it scrolls inside.
 - The conversation scrolls to the newest message whenever the user sends one.
   - **Acceptance Criteria:**
-    - [ ] Given an open chat, when the user types «Привет» and presses Enter, then a right-hand bubble «Привет» appears with the current time and 🕓, which turns into ✅ once it's sent, and the box is empty again.
-    - [ ] Given sending fails, when the user looks at the bubble, then it shows ❗ and «Не отправлено · Повторить», and when they click «Повторить» and sending succeeds, then the same bubble shows ✅.
+    - [ ] Given an open chat, when the user types «Привет» and presses Enter, then a right-hand bubble «Привет» appears with the current time and 🕓, which turns into ✅ once GREEN-API accepts it, and the box is empty again.
+    - [ ] Given GREEN-API refuses the message, when the user looks at the bubble, then it shows ❗ and «Не отправлено · Повторить», and when they click «Повторить» and sending succeeds, then the same bubble shows ✅.
+    - [ ] Given GREEN-API doesn't answer while sending, when the user looks at the bubble, then it shows ❔ «Статус неизвестен · Повторить», and when they click «Повторить», then they are asked «Сообщение могло уже уйти. Отправить ещё раз?» before anything is sent.
     - [ ] When the user presses Shift+Enter between two lines and then Enter, then one bubble shows both lines.
     - [ ] When the user presses Enter in an empty box, or one with only spaces, then nothing is sent.
     - [ ] When the user types 10 lines, then the box stops growing at 6 lines and scrolls inside.
 
 ### 2.4. Chats kept across reloads
 
-- Chats and messages stay in this browser after a reload. A message that was still being sent when the page was closed is shown as failed (❗ + «Повторить») after the reload; it isn't resent by itself. Logging out removes all chats and messages from this browser.
+- Chats and messages stay in this browser after a reload. A message that was still being sent when the page was closed shows ❔ «Статус неизвестен · Повторить» after the reload; it isn't resent by itself. Each chat keeps its unsent text in the message box when the user switches to another chat and after a reload. Logging out removes all chats, messages and unsent texts from this browser.
   - **Acceptance Criteria:**
     - [ ] Given two chats with messages, when the user reloads the page, then both chats and all their messages are still there with their marks.
-    - [ ] Given a message still shows 🕓, when the page is reloaded, then that message shows ❗ and «Не отправлено · Повторить».
+    - [ ] Given a message still shows 🕓, when the page is reloaded, then that message shows ❔ and «Статус неизвестен · Повторить».
+    - [ ] Given the user typed «черновик» in chat A without sending, when they open chat B, come back to A and reload the page, then «черновик» is still in chat A's message box.
     - [ ] Given chats exist, when the user clicks «Выйти» and signs in again, then the chat list shows «Нет чатов. Нажмите «+», чтобы начать».
 
 ### 2.5. Real WhatsApp delivery
@@ -102,3 +106,4 @@ The interface stays in Russian and as simple as WhatsApp Web.
 ## Change Log
 
 _Dated amendments made after the spec was first written — typically by `/awos:spec` in Update Mode when a bug fix changed documented behavior. Each entry records the date, the source reference (bug id or fix description), and what behavior changed and why. Leave empty until the first amendment._
+- 2026-10-06 — review `spec-codex` stage 2 — §2.1: custom code digits only; locked «Проверяем…» while checking. §2.2: empty chats and no-selection placeholder. §2.3: ✅ = accepted by GREEN-API; ❔ «Статус неизвестен» for unknown outcomes, with a confirmation before resending. §2.4: ❔ after reload; per-chat unsent text kept.

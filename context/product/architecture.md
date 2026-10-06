@@ -14,7 +14,7 @@ _A static, client-only React single-page app that talks to GREEN-API directly fr
 - **Server Communication:** a small typed API client over `fetch` (one function per GREEN-API method used), plus a dedicated **long-poll loop** for receiving. _Alternative: TanStack Query. Rejected, because the receive loop is a sequential receive → handle → delete cycle that doesn't fit a query cache, and sends are plain one-off calls._
 - **Routing:** none. The app switches between the login, chat and other-tab screens based on state, not URL. This also avoids GitHub Pages' "404 on deep link" problem for single-page apps.
 - **Styling:** CSS Modules + CSS custom properties for the WhatsApp Web palette and layout. _Alternative: Tailwind CSS, which is faster to write but adds config and noisier markup for a small UI. (Assumption.)_
-- **Phone Number Handling:** our own normalizer: strip spaces, brackets, dashes and a leading `+`, require 10–15 digits, and build the chat id `<digits>@c.us`. _Alternative: `libphonenumber-js`, rejected for size; per-country validation isn't required._
+- **Phone Number Handling:** a country picker (short list + «Другая страна» with a typed code) plus the national number; the code and the digits (spaces, brackets, dashes stripped) are joined into the chat id `<code><digits>@c.us`. No length check (user decision, spec 003); `+7` numbers are displayed as `+7 900 123-45-67`, others as `+<digits>`. _Alternative rejected: `libphonenumber-js` (size; per-country validation not wanted)._
 - **Testing:** Vitest + React Testing Library for units and components, and **MSW (Mock Service Worker)** to fake GREEN-API in tests: the notification queue, the send endpoint and error responses. _Optional: one Playwright smoke test of the full flow against MSW, if Phase 3 has time._
 - **Testing Stack by Layer:**
   - **Unit:** Vitest, for pure logic (phone normalization, notification parsing, dedupe/ordering, store reducers).
@@ -65,6 +65,7 @@ _A static, client-only React single-page app that talks to GREEN-API directly fr
 - **Methods Used:**
   - `getStateInstance`: at login and on every reload. `authorized` is required. `notAuthorized`, `blocked`, `sleepMode`, `starting` and `suspended` each map to a specific message for the user.
   - `getSettings`: at login, the readiness check. It requires `webhookUrl` to be empty and `incomingWebhook` to be `"yes"`; otherwise the user is told what to change in the console.
+  - `checkWhatsapp` (POST `{phoneNumber}` → `{existsWhatsapp}`): before a new chat is created (spec 003). Exact contract and error mapping in spec 003's tech doc; verified on a real instance in its slice 1.
   - `sendMessage` (POST `{chatId, message}`): returns `idMessage`. HTTP success → `sent`; error or timeout → `failed` (no automatic retry).
   - `receiveNotification` (GET, `receiveTimeout` 5–60 s; we use about 20 s): long poll. An empty response means the queue is empty, so poll again.
   - `deleteNotification` (DELETE `/{receiptId}`): called after every notification, whether it was handled or skipped.
