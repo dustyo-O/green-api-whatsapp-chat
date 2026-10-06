@@ -1,6 +1,6 @@
 // @layer: integration
 // @spec: 004-receiving-replies
-import { http, HttpResponse } from "msw";
+import { delay, http, HttpResponse } from "msw";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   API_URL,
@@ -66,11 +66,6 @@ async function receivesAfter(steps: number[]) {
   }
   return counts;
 }
-
-const untilAborted = (request: Request) =>
-  new Promise((resolve) => {
-    request.signal.addEventListener("abort", resolve);
-  });
 
 beforeEach(() => {
   useChats.getState().open(ID);
@@ -249,9 +244,9 @@ describe("runReceiveLoop", () => {
   it("drops a stalled receive and polls at once when the browser is back online", async () => {
     let stalls = 1;
     server.use(
-      http.get("*/receiveNotification/*", async ({ request }) => {
+      http.get("*/receiveNotification/*", async () => {
         if (stalls-- <= 0) return; // falls through to the queue
-        await untilAborted(request);
+        await delay("infinite");
         return new HttpResponse(null);
       }),
     );

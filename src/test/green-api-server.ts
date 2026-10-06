@@ -20,7 +20,7 @@ let queued: QueueAnswer[] = [];
 /**
  * Appends to GREEN-API's notification queue. A notification stays at the head until it is
  * deleted (a real FIFO, so a failed delete re-delivers it); `null` (an empty body) and responses
- * are answered once. An empty queue waits until the request is aborted.
+ * are answered once. An empty queue never answers, so the client's own budget or abort ends it.
  */
 export function queue(...answers: QueueAnswer[]) {
   queued.push(...answers);
@@ -33,12 +33,11 @@ const isNotification = (
 
 // In `setupServer`, so `resetHandlers()` keeps them: every signed-in page polls.
 const notificationQueue = [
-  http.get("*/receiveNotification/*", async ({ request }) => {
+  http.get("*/receiveNotification/*", async () => {
     const head = queued.at(0);
     if (head === undefined) {
-      await new Promise((resolve) => {
-        request.signal.addEventListener("abort", resolve);
-      });
+      // A long poll that never ends; the client's abort rejects its fetch.
+      await delay("infinite");
       return new HttpResponse(null);
     }
     if (isNotification(head)) return HttpResponse.json(head);
