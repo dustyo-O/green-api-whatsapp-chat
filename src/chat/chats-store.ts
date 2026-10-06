@@ -335,7 +335,8 @@ export const useChats = create<ChatsState>()(
           patchChat(chatId, (chat) => ({
             ...chat,
             draft: "",
-            messages: [...chat.messages, message],
+            // A reply stamped ahead of the local clock stays after it (review F1).
+            messages: insertByTime(chat.messages, message),
           }));
           settle(chatId, message.id, await sendText(credentials, chatId, text));
         },
