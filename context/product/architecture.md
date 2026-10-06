@@ -66,7 +66,7 @@ _A static, client-only React single-page app that talks to GREEN-API directly fr
   - `getStateInstance`: at login and on every reload. `authorized` is required. `notAuthorized`, `blocked`, `sleepMode`, `starting` and `suspended` each map to a specific message for the user.
   - `getSettings`: at login, the readiness check. It requires `webhookUrl` to be empty and `incomingWebhook` to be `"yes"`; otherwise the user is told what to change in the console.
   - `checkWhatsapp` (POST `{phoneNumber}` → `{existsWhatsapp}`): before a new chat is created (spec 003). Exact contract and error mapping in spec 003's tech doc; verified on a real instance in its slice 1.
-  - `sendMessage` (POST `{chatId, message}`): returns `idMessage`. HTTP success → `sent`; error or timeout → `failed` (no automatic retry).
+  - `sendMessage` (POST `{chatId, message}`): returns `idMessage`. HTTP success with `idMessage` → `sent` (accepted by GREEN-API, not delivered); a definite refusal (4xx) → `failed`; no answer, dropped connection or a page closed mid-send → `unknown` (spec 003, ❔ «Статус неизвестен»). Nothing is retried automatically.
   - `receiveNotification` (GET, `receiveTimeout` 5–60 s; we use about 20 s): long poll. An empty response means the queue is empty, so poll again.
   - `deleteNotification` (DELETE `/{receiptId}`): called after every notification, whether it was handled or skipped.
   - `getChatHistory`: Phase 4 stretch only.
