@@ -13,6 +13,9 @@ export interface Incoming {
   name?: string;
 }
 
+/** Shown instead of a reply the app can't display yet (functional §2.3). */
+export const UNSUPPORTED_TEXT = "Сообщение этого типа пока не поддерживается";
+
 // Personal chats only: drops groups `@g.us`, `status@broadcast` and newsletters.
 const PERSONAL_CHAT = /^\d+@(c\.us|lid)$/;
 
