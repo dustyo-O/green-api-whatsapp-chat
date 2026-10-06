@@ -33,3 +33,7 @@
 - [ ] **Slice 4: Ship**
   - [ ] Push and open the PR (`feat: receiving replies`, links tasks.md + reviews/, `Refs: TKT-6`). **Confirm `gh pr checks` lists passing `check` + `commitlint` on the head commit before merging.** Run `/harness:review-code 004`, fix through the lane, merge with a merge commit. Comment the PR on TKT-6. **[Lead]**
   - [ ] Once a linkable WhatsApp account exists (TKT-5): on the live site, open the chat with your second number, reply «Привет-привет» from that phone → it appears on the left within 10 s; reply from a new number → a new chat with a badge; send a sticker → the placeholder. **[User]**
+
+- [ ] **Slice F1: Code review fix for PR #12** (review `code-codex-*-0124`)
+  - [ ] Review F1: in `src/chat/receive-loop.ts`, wrap the save step (`useChats.getState().receive(...)`) so **any** thrown error backs off (the usual 1/2/4/5 s) **without deleting** the notification and the loop keeps running; it never ends silently. Also make sure `MainScreen`'s loop promise can't reject unhandled (catch-all at the top level, logging nothing that could contain a body). Test: make the save throw once, then succeed → the loop keeps going, the reply ends up saved, appears exactly once after a reload, and is deleted only after the successful save. RED proof. No storage-error UI. **[Agent: react-frontend]**
+  - [ ] Verify: `npm run check` green. **[Agent: react-frontend]**

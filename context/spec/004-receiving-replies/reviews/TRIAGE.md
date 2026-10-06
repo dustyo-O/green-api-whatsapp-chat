@@ -21,3 +21,9 @@
 | F3 | major | accepted | Real hot-loop risk (re-receive → dedupe → failed delete → re-receive). Only verified deletions count; other delete failures back off, reset only by a successful delete; one test. | tech §2.4, §4 |
 | F4 | major | accepted in part; deferred: Phase 2 "Connection & Authorization States" | Bodies with a `receiptId` are always deleted. Ones without can't be deleted by anyone; the promise is qualified in tech, and the visible stuck state is the Phase 2 banner. | tech §2.4, §3 risk 5 |
 | F5 | minor | accepted (wording) | New chats follow the latest-message time too; "at the top" applies to a fresh reply. | functional §2.2 |
+
+## Code review 2026-10-07 — code-codex-20261007-0123.md (codex · effort low · PR #12) — verdict: DO NOT SHIP
+
+| # | severity | verdict | rationale | applied in |
+|---|---|---|---|---|
+| F1 | major | accepted in part; rejected: storage confirmation / error UI | A real, wider bug: **any** exception from the save step ends the loop silently (`receive()` is outside both catch blocks; `MainScreen` drops the promise), so replies stop until a reload. Fix: catch errors from the save step, back off **without deleting**, keep looping; test "save throws once → loop survives → reply saved once after reload". Confirmed persistence and a storage-error message stay out of scope (storage write failures, decided eight times; user rule). | tasks.md Slice F1 |
