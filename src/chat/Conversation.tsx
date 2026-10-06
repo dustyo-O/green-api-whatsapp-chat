@@ -37,12 +37,14 @@ export function Conversation({ chatId }: { chatId: string }) {
       </header>
       <ol ref={listRef} className={styles.messages} aria-label="Сообщения">
         {messages.map((m) => {
-          const problem = PROBLEMS[m.status];
+          const status = m.direction === "out" ? m.status : null;
+          const problem = status === null ? undefined : PROBLEMS[status];
           return (
             <li key={m.id} className={styles.bubble}>
               <p className={styles.text}>{m.text}</p>
               <span className={styles.meta}>
-                <time>{formatTime(m.time)}</time> {MARKS[m.status]}
+                <time>{formatTime(m.time)}</time>{" "}
+                {status !== null && MARKS[status]}
               </span>
               {problem && (
                 <span className={styles.problem}>
@@ -53,7 +55,7 @@ export function Conversation({ chatId }: { chatId: string }) {
                     onClick={() => {
                       if (
                         credentials === null ||
-                        (m.status === "unknown" &&
+                        (status === "unknown" &&
                           !window.confirm(
                             "Сообщение могло уже уйти. Отправить ещё раз?",
                           ))
