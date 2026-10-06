@@ -1,6 +1,12 @@
 // @layer: integration
 // @spec: 003-chats-sending
-import { act, fireEvent, screen, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent, { type UserEvent } from "@testing-library/user-event";
 import { HttpResponse } from "msw";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -26,13 +32,26 @@ const CHATS_KEY = `green-api-chat:chats:${ID}`;
 const RU = "79037474411@c.us";
 const RS = "381629443720@c.us";
 
-/** Opens (or reloads) the page signed in: fresh modules, then main.tsx as the browser runs it. */
-async function openPage() {
+/** Opens (or reloads) the page: fresh modules, then main.tsx as the browser runs it. */
+async function loadPage() {
   document.body.innerHTML = '<div id="root"></div>';
   vi.resetModules();
   await act(async () => {
     await import("../main");
   });
+}
+
+/** Opens (or reloads) the page signed in. */
+async function openPage() {
+  await loadPage();
+  await screen.findByText(`Инстанс ${ID}`);
+}
+
+/** Signs in through the login form. */
+async function signIn(user: UserEvent) {
+  await user.type(screen.getByLabelText("idInstance"), ID);
+  await user.type(screen.getByLabelText("apiTokenInstance"), "faketoken");
+  await user.click(screen.getByRole("button", { name: "Войти" }));
   await screen.findByText(`Инстанс ${ID}`);
 }
 
@@ -765,5 +784,146 @@ describe("§2.4 chats kept across reloads", () => {
       await screen.findByText("Нет чатов. Нажмите «+», чтобы начать"),
     ).toBeDefined();
     expect(localStorage.getItem(CHATS_KEY)).not.toContain(RU);
+  });
+});
+
+describe("the whole feature (acceptance)", () => {
+  // @regression — functional §2.1 c1/c2/c7, §2.2 c1/c2, §2.3 c1/c2, §2.4 c1/c4 as one journey
+  it("signs in, starts two chats, sends, keeps everything over a reload and forgets it on «Выйти»", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(NOW);
+    server.use(...ready(), whatsappExists(true), sentAs("BAE5"));
+    const user = userEvent.setup();
+    await loadPage();
+    await signIn(user);
+    expect(
+      screen.getByText("Нет чатов. Нажмите «+», чтобы начать"),
+    ).toBeDefined();
+    expect(
+      screen.getByText("Выберите чат, чтобы начать переписку"),
+    ).toBeDefined();
+
+    await startChat(user, "903 747-44-11");
+    expect((await screen.findByRole("heading", { level: 2 })).textContent).toBe(
+      "+7 903 747-44-11",
+    );
+    await user.type(composer(), "Привет{Enter}");
+    await screen.findByText(/✅/);
+    expect(bubbleTexts()).toEqual([`Привет${formatTime(NOW)} ✅`]);
+
+    vi.setSystemTime(NOW + 60_000);
+    await user.click(plus());
+    await user.selectOptions(picker(), "Другая страна");
+    await user.type(screen.getByRole("textbox", { name: "Код страны" }), "381");
+    await user.type(numberField(), "629443720{Enter}");
+    expect((await screen.findByRole("heading", { level: 2 })).textContent).toBe(
+      "+381629443720",
+    );
+    expect(titles()).toEqual(["+381629443720", "+7 903 747-44-11"]);
+    server.use(status("sendMessage", 466));
+    await user.type(composer(), "Здравствуйте{Enter}");
+    await screen.findByText(/❗/);
+
+    vi.setSystemTime(NOW + 120_000);
+    server.use(sentAs("BAE6"));
+    await openChat(user, "+7 903 747-44-11");
+    await user.type(composer(), "Как дела?{Enter}");
+    await waitFor(() => {
+      expect(bubbleTexts()[1]).toMatch(/✅$/);
+    });
+    expect(titles()).toEqual(["+7 903 747-44-11", "+381629443720"]);
+    expect(posted.map((p) => [p.method, p.body])).toEqual([
+      ["checkWhatsapp", { chatId: RU }],
+      ["sendMessage", { chatId: RU, message: "Привет" }],
+      ["checkWhatsapp", { chatId: RS }],
+      ["sendMessage", { chatId: RS, message: "Здравствуйте" }],
+      ["sendMessage", { chatId: RU, message: "Как дела?" }],
+    ]);
+
+    requests.length = 0;
+    await openPage();
+
+    expect(titles()).toEqual(["+7 903 747-44-11", "+381629443720"]);
+    expect(
+      screen.getByText("Выберите чат, чтобы начать переписку"),
+    ).toBeDefined();
+    await openChat(user, "+7 903 747-44-11");
+    expect(bubbleTexts()).toEqual([
+      `Привет${formatTime(NOW)} ✅`,
+      `Как дела?${formatTime(NOW + 120_000)} ✅`,
+    ]);
+    expect(composer().value).toBe("");
+    await openChat(user, "+381629443720");
+    expect(bubbleTexts()).toEqual([
+      `Здравствуйте${formatTime(NOW + 60_000)} ❗Не отправлено · Повторить`,
+    ]);
+    // Nothing is checked or sent again by itself.
+    expect(requests).not.toContain("checkWhatsapp");
+    expect(requests).not.toContain("sendMessage");
+
+    await user.click(screen.getByRole("button", { name: "Выйти" }));
+    await signIn(user);
+
+    expect(
+      screen.getByText("Нет чатов. Нажмите «+», чтобы начать"),
+    ).toBeDefined();
+    expect(localStorage.getItem(CHATS_KEY) ?? "").not.toMatch(/@c\.us/);
+  });
+
+  // @regression — functional §2.4 c2 + §2.3 c3: a send cut off by a reload is resent only after the user agrees
+  it("brings back a message cut off by a reload as ❔ and resends it on the same bubble only after confirmation", async () => {
+    const send = gatedSend();
+    server.use(send.handler);
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const user = userEvent.setup();
+    await openRuChat(user);
+    await user.type(composer(), "Привет{Enter}");
+    expect(bubbleTexts()).toEqual([expect.stringMatching(/🕓$/)]);
+
+    await openPage();
+    await openChat(user, "+7 903 747-44-11");
+    expect(bubbleTexts()).toEqual([
+      expect.stringMatching(
+        /^Привет\d\d:\d\d ❔Статус неизвестен · Повторить$/,
+      ),
+    ]);
+
+    await user.click(screen.getByRole("button", { name: "Повторить" }));
+    expect(confirm).toHaveBeenCalledExactlyOnceWith(
+      "Сообщение могло уже уйти. Отправить ещё раз?",
+    );
+    expect(posted).toHaveLength(1);
+
+    confirm.mockReturnValue(true);
+    server.use(sentAs("BAE5"));
+    await user.click(screen.getByRole("button", { name: "Повторить" }));
+    await screen.findByText(/✅/);
+    expect(bubbles()).toHaveLength(1);
+    expect(posted.map((p) => p.body)).toEqual([
+      { chatId: RU, message: "Привет" },
+      { chatId: RU, message: "Привет" },
+    ]);
+
+    await openPage();
+    await openChat(user, "+7 903 747-44-11");
+    expect(bubbleTexts()).toEqual([
+      expect.stringMatching(/^Привет\d\d:\d\d ✅$/),
+    ]);
+  });
+
+  // @regression — functional §2.3: the conversation scrolls to the newest message on send
+  it("scrolls to the newest message when the user sends one", async () => {
+    vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockReturnValue(
+      1234,
+    );
+    server.use(sentAs("BAE5"));
+    const user = userEvent.setup();
+    await openRuChat(user);
+    const list = screen.getByRole("list", { name: "Сообщения" });
+    list.scrollTop = 0;
+
+    await user.type(composer(), "Привет{Enter}");
+
+    expect(list.scrollTop).toBe(1234);
   });
 });
