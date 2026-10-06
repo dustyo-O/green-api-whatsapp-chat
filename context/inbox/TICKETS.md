@@ -91,3 +91,4 @@ WhatsApp Web-style chat layout; start a chat by the recipient's phone number; se
 
 - 2026-10-06 — `/harness:feature` started; stage 0 (grill) running.
 - 2026-10-06 — grill done → `context/inbox/chats-sending.md`. D1 «+» opens a number field · D2 country picker (short list + «Другая страна»), national number · D3 no length check · D4 WhatsApp check on chat creation only · D5 +7 formatted, others plain · D6 emoji marks 🕓 ✅ ❗ + «Повторить» · D7 auto-growing textarea ≤ 6 lines · D8 no deleting · D9 kept across reloads, stuck «sending» → failed · D10 real check to the main phone.
+- 2026-10-06 — Spec: `context/spec/003-chats-sending/functional-spec.md` → In Progress.
