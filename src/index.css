@@ -11,6 +11,7 @@
   --color-button-text: #ffffff;
   --color-danger: #ea0038;
   --color-chat-bg: #efeae2;
+  --color-bubble-out: #d9fdd3;
   --color-item-selected: #f0f2f5;
   --color-item-hover: #f5f6f6;
 
@@ -38,6 +39,7 @@
     --color-button-text: #111b21;
     --color-danger: #f15c6d;
     --color-chat-bg: #0b141a;
+    --color-bubble-out: #005c4b;
     --color-item-selected: #2a3942;
     --color-item-hover: #202c33;
   }

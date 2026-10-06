@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useSession } from "../auth/session-store";
 import { ChatList } from "./ChatList";
 import { useChats } from "./chats-store";
+import { Conversation } from "./Conversation";
 import { NewChatForm } from "./NewChatForm";
-import { formatTitle } from "./phone";
 import styles from "./MainScreen.module.css";
 
 export function MainScreen() {
@@ -48,11 +48,7 @@ export function MainScreen() {
           <p>Выберите чат, чтобы начать переписку</p>
         </section>
       ) : (
-        <section className={styles.conversation}>
-          <header className={styles.header}>
-            <h2 className={styles.title}>{formatTitle(selectedId)}</h2>
-          </header>
-        </section>
+        <Conversation chatId={selectedId} />
       )}
     </main>
   );
