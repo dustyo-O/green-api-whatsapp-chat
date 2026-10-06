@@ -6,12 +6,22 @@ import { afterAll, afterEach, beforeAll } from "vitest";
 
 export const API_URL = "https://7103.api.greenapi.com";
 
-type Method = "getStateInstance" | "getSettings";
+type Method =
+  "getStateInstance" | "getSettings" | "checkWhatsapp" | "sendMessage";
+
+const POST_METHODS: readonly Method[] = ["checkWhatsapp", "sendMessage"];
 
 export const server = setupServer();
 
 /** Methods requested since the test started, in order. */
 export const requests: Method[] = [];
+
+/** POST calls since the test started, in order, as the handlers received them. */
+export const posted: {
+  method: Method;
+  contentType: string | null;
+  body: unknown;
+}[] = [];
 
 export function setupGreenApiServer() {
   beforeAll(() => {
@@ -23,15 +33,26 @@ export function setupGreenApiServer() {
   afterEach(() => {
     server.resetHandlers();
     requests.length = 0;
+    posted.length = 0;
   });
   afterAll(() => {
     server.close();
   });
 }
 
-/** Answers `method` on any host and instance. */
+/** Answers `method` on any host and instance; POST methods also record their body in `posted`. */
 export function reply(method: Method, resolver: HttpResponseResolver) {
-  return http.get(`*/${method}/*`, resolver);
+  if (!POST_METHODS.includes(method)) {
+    return http.get(`*/${method}/*`, resolver);
+  }
+  return http.post(`*/${method}/*`, async (info) => {
+    posted.push({
+      method,
+      contentType: info.request.headers.get("Content-Type"),
+      body: (await info.request.clone().json()) as unknown,
+    });
+    return resolver(info);
+  });
 }
 
 export const stateIs = (stateInstance: unknown) =>
@@ -44,6 +65,14 @@ export const READY_SETTINGS = { webhookUrl: "", incomingWebhook: "yes" };
 
 /** A ready instance: authorized, no webhook, incoming notifications on. */
 export const ready = () => [stateIs("authorized"), settingsAre(READY_SETTINGS)];
+
+export const whatsappExists = (existsWhatsapp: boolean) =>
+  reply("checkWhatsapp", () =>
+    HttpResponse.json({ existsWhatsapp, chatId: "1234567890@lid" }),
+  );
+
+export const sentAs = (idMessage: string) =>
+  reply("sendMessage", () => HttpResponse.json({ idMessage }));
 
 /** GREEN-API's real error shape: JSON content type, empty body. */
 export const status = (method: Method, code: number) =>
