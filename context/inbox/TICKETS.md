@@ -133,3 +133,4 @@ Incoming text messages appear in the right chat within 10 seconds; a text from a
 
 - 2026-10-06 — `/harness:feature` started; stage 0 (grill) running. Real checks depend on TKT-5 (a linkable WhatsApp account).
 - 2026-10-06 — grill done → `context/inbox/receiving-replies.md` (all recommended). D1 left white bubbles · D2 unread badge · D3 ignore instance-phone messages · D4 placeholder for non-text, groups skipped · D5 match by number, else @lid chat titled by WhatsApp name / «Неизвестный номер» · D6 backlog after sign-in with original times · D7 no sound/notifications.
+- 2026-10-06 — Spec: `context/spec/004-receiving-replies/functional-spec.md` → In Progress.
