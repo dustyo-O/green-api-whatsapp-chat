@@ -32,7 +32,7 @@ The interface stays in Russian and as simple as WhatsApp Web.
   - if it doesn't, the user sees «На этом номере нет WhatsApp», and no chat is created;
   - if the check can't be completed, the user sees «Не удалось проверить номер. Попробуйте ещё раз.», and no chat is created.
 
-  In every case the number stays in the field.
+  When the chat opens, the new-chat row closes. When no chat is created, the row stays open and the number stays in the field.
   - **Acceptance Criteria:**
     - [ ] When the signed-in user clicks «+», then a row with the country picker set to 🇷🇺 Россия +7, an empty number field and «Начать чат» appears at the top of the chat list.
     - [ ] Given Россия +7 is selected, when the user types `903 747-44-11` and clicks «Начать чат» for a number that uses WhatsApp, then a chat titled `+7 903 747-44-11` appears at the top of the list and opens.
@@ -107,3 +107,4 @@ The interface stays in Russian and as simple as WhatsApp Web.
 
 _Dated amendments made after the spec was first written — typically by `/awos:spec` in Update Mode when a bug fix changed documented behavior. Each entry records the date, the source reference (bug id or fix description), and what behavior changed and why. Leave empty until the first amendment._
 - 2026-10-06 — review `spec-codex` stage 2 — §2.1: custom code digits only; locked «Проверяем…» while checking. §2.2: empty chats and no-selection placeholder. §2.3: ✅ = accepted by GREEN-API; ❔ «Статус неизвестен» for unknown outcomes, with a confirmation before resending. §2.4: ❔ after reload; per-chat unsent text kept.
+- 2026-10-06 — tech consult open question — §2.1: the new-chat row closes when the chat opens; the number stays only when no chat is created (the earlier "in every case" wording was ambiguous).
