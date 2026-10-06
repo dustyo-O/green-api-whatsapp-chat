@@ -1,0 +1,23 @@
+.footer {
+  flex-shrink: 0;
+  padding: 10px 16px;
+  background: var(--color-panel-header);
+}
+
+.box {
+  --padding: 9px;
+
+  display: block;
+  width: 100%;
+  max-height: calc(6lh + 2 * var(--padding));
+  padding: var(--padding) 12px;
+  border: none;
+  border-radius: 8px;
+  outline: none;
+  background: var(--color-panel);
+  color: inherit;
+  font: inherit;
+  overflow-y: auto;
+  resize: none;
+  field-sizing: content;
+}

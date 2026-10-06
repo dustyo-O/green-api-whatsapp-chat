@@ -14,7 +14,7 @@ export function ChatList() {
   }
 
   return (
-    <ul className={styles.list}>
+    <ul className={styles.list} aria-label="Чаты">
       {sorted.map((chat) => {
         const last = chat.messages.at(-1);
         return (
