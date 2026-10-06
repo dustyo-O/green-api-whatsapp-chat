@@ -12,6 +12,7 @@ import {
   setupGreenApiServer,
 } from "../test/green-api-server";
 import {
+  lastActivity,
   restoreChats,
   sortChats,
   storageKey,
@@ -427,6 +428,22 @@ describe("receive", () => {
       RU,
     ]);
     expect(useChats.getState().chats[RU].messages.at(-1)?.time).toBe(2_000);
+  });
+
+  // @regression — review F1 (pr #12): a send after a reply stamped ahead of the local clock
+  it("sends into time order, so the chat's preview and activity never move back", async () => {
+    server.use(sentAs("BAE5"));
+    vi.spyOn(Date, "now").mockReturnValue(5_000);
+    useChats.getState().open(A);
+    useChats.getState().addChat(RU);
+    useChats.getState().receive(incoming({ time: 9_000 }));
+
+    await useChats.getState().send(CREDS, RU, "Привет");
+
+    const sent = useChats.getState().chats[RU];
+    expect(sent.messages.map((m) => m.time)).toEqual([5_000, 9_000]);
+    expect(sent.messages.at(-1)?.text).toBe("Привет-привет");
+    expect(lastActivity(sent)).toBe(9_000);
   });
 
   // @regression — functional §2.2 c1: no badge in the open chat; opening clears it
