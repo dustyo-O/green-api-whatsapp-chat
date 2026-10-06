@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { Credentials } from "../api/green-api";
+import { sendText, type SendOutcome } from "./outcomes";
 
 export type MessageStatus = "sending" | "sent" | "failed" | "unknown";
 
@@ -36,6 +38,19 @@ interface ChatsState {
   /** Adds the chat if it is missing, then selects it. */
   addChat: (chatId: string) => void;
   select: (chatId: string) => void;
+  setDraft: (chatId: string, draft: string) => void;
+  /** Appends the message as 🕓, clears the draft, then settles it on GREEN-API's answer. */
+  send: (
+    credentials: Credentials,
+    chatId: string,
+    text: string,
+  ) => Promise<void>;
+  /** Sends a ❗/❔ message again: the same bubble goes back to 🕓, then settles. */
+  retry: (
+    credentials: Credentials,
+    chatId: string,
+    messageId: string,
+  ) => Promise<void>;
 }
 
 const STATUSES: readonly string[] = ["sending", "sent", "failed", "unknown"];
@@ -107,49 +122,120 @@ export const storageKey = (idInstance: string) =>
 
 export const useChats = create<ChatsState>()(
   persist(
-    (set, get, api) => ({
-      idInstance: null,
-      chats: {},
-      selectedId: null,
-
-      open: (idInstance) => {
-        api.persist.setOptions({ name: storageKey(idInstance) });
-        // Synchronous for localStorage; `merge` replaces `chats` with what this key holds.
-        void api.persist.rehydrate();
-        set({ idInstance, selectedId: null });
-      },
-
-      wipe: () => {
-        // Every `set` writes, so reset first and remove the key last.
-        set({ idInstance: null, chats: {}, selectedId: null });
-        api.persist.clearStorage();
-      },
-
-      addChat: (chatId) => {
+    (set, get, api) => {
+      const patchChat = (chatId: string, patch: (chat: Chat) => Chat) => {
         const { idInstance, chats } = get();
-        if (idInstance === null) return;
-        set({
-          selectedId: chatId,
-          chats:
-            chatId in chats
-              ? chats
-              : {
-                  ...chats,
-                  [chatId]: {
-                    id: chatId,
-                    createdAt: Date.now(),
-                    messages: [],
-                    draft: "",
-                  },
-                },
-        });
-      },
+        const chat = chats[chatId] as Chat | undefined;
+        if (idInstance === null || chat === undefined) return;
+        set({ chats: { ...chats, [chatId]: patch(chat) } });
+      };
 
-      select: (chatId) => {
-        if (get().idInstance === null || !(chatId in get().chats)) return;
-        set({ selectedId: chatId });
-      },
-    }),
+      // A no-op if the message is gone (a logout happened mid-send).
+      const settle = (
+        chatId: string,
+        messageId: string,
+        result: SendOutcome,
+      ) => {
+        patchChat(chatId, (chat) => ({
+          ...chat,
+          messages: chat.messages.map((m) =>
+            m.id !== messageId
+              ? m
+              : result.outcome === "sent"
+                ? { ...m, status: "sent", idMessage: result.idMessage }
+                : { ...m, status: result.outcome },
+          ),
+        }));
+      };
+
+      return {
+        idInstance: null,
+        chats: {},
+        selectedId: null,
+
+        open: (idInstance) => {
+          api.persist.setOptions({ name: storageKey(idInstance) });
+          // Synchronous for localStorage; `merge` replaces `chats` with what this key holds.
+          void api.persist.rehydrate();
+          set({ idInstance, selectedId: null });
+        },
+
+        wipe: () => {
+          // Every `set` writes, so reset first and remove the key last.
+          set({ idInstance: null, chats: {}, selectedId: null });
+          api.persist.clearStorage();
+        },
+
+        addChat: (chatId) => {
+          const { idInstance, chats } = get();
+          if (idInstance === null) return;
+          set({
+            selectedId: chatId,
+            chats:
+              chatId in chats
+                ? chats
+                : {
+                    ...chats,
+                    [chatId]: {
+                      id: chatId,
+                      createdAt: Date.now(),
+                      messages: [],
+                      draft: "",
+                    },
+                  },
+          });
+        },
+
+        select: (chatId) => {
+          if (get().idInstance === null || !(chatId in get().chats)) return;
+          set({ selectedId: chatId });
+        },
+
+        setDraft: (chatId, draft) => {
+          patchChat(chatId, (chat) => ({ ...chat, draft }));
+        },
+
+        send: async (credentials, chatId, text) => {
+          if (get().idInstance === null || !(chatId in get().chats)) return;
+          const message: Message = {
+            id: crypto.randomUUID(),
+            direction: "out",
+            text,
+            time: Date.now(),
+            status: "sending",
+          };
+          patchChat(chatId, (chat) => ({
+            ...chat,
+            draft: "",
+            messages: [...chat.messages, message],
+          }));
+          settle(chatId, message.id, await sendText(credentials, chatId, text));
+        },
+
+        retry: async (credentials, chatId, messageId) => {
+          const chat = get().chats[chatId] as Chat | undefined;
+          const message = chat?.messages.find((m) => m.id === messageId);
+          if (
+            get().idInstance === null ||
+            message === undefined ||
+            (message.status !== "failed" && message.status !== "unknown")
+          ) {
+            return;
+          }
+          patchChat(chatId, (chat) => ({
+            ...chat,
+            messages: chat.messages.map((m) =>
+              m.id === messageId ? { ...m, status: "sending" } : m,
+            ),
+          }));
+          settle(
+            chatId,
+            messageId,
+            await sendText(credentials, chatId, message.text),
+          );
+        },
+      };
+    },
     {
       // Replaced by `open()` before anything is read or written.
       name: "green-api-chat:chats",

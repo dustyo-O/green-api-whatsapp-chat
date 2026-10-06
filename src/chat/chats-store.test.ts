@@ -1,6 +1,16 @@
 // @layer: unit
 // @spec: 003-chats-sending
+import { HttpResponse } from "msw";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  API_URL,
+  posted,
+  reply,
+  requests,
+  sentAs,
+  server,
+  setupGreenApiServer,
+} from "../test/green-api-server";
 import {
   restoreChats,
   sortChats,
@@ -10,10 +20,13 @@ import {
   type Message,
 } from "./chats-store";
 
+setupGreenApiServer();
+
 const A = "7103111111";
 const B = "7103222222";
 const RU = "79037474411@c.us";
 const RS = "381629443720@c.us";
+const CREDS = { idInstance: A, apiTokenInstance: "faketoken", apiUrl: API_URL };
 
 const message = (patch: Partial<Message> = {}): Message => ({
   id: "m1",
@@ -217,5 +230,75 @@ describe("useChats", () => {
 
     expect(useChats.getState().chats).toEqual({});
     expect(localStorage.length).toBe(0);
+  });
+
+  it("sends: 🕓 with the draft cleared, then ✅ with the idMessage", async () => {
+    server.use(sentAs("BAE5"));
+    useChats.getState().open(A);
+    useChats.getState().addChat(RU);
+    useChats.getState().setDraft(RU, "Привет");
+
+    const sending = useChats.getState().send(CREDS, RU, "Привет");
+    expect(useChats.getState().chats[RU]).toMatchObject({
+      draft: "",
+      messages: [{ direction: "out", text: "Привет", status: "sending" }],
+    });
+    await sending;
+
+    expect(useChats.getState().chats[RU].messages).toEqual([
+      expect.objectContaining({ status: "sent", idMessage: "BAE5" }),
+    ]);
+    expect(saved(A)).toMatchObject({
+      state: { chats: { [RU]: { messages: [{ status: "sent" }] } } },
+    });
+  });
+
+  // @regression — tech §2.4: an answer after logout changes nothing and writes nothing
+  it("drops a send answer that arrives after wipe", async () => {
+    let answer = () => {};
+    const gate = new Promise<void>((resolve) => {
+      answer = resolve;
+    });
+    server.use(
+      reply("sendMessage", async () => {
+        await gate;
+        return HttpResponse.json({ idMessage: "BAE5" });
+      }),
+    );
+    useChats.getState().open(A);
+    useChats.getState().addChat(RU);
+    const sending = useChats.getState().send(CREDS, RU, "Привет");
+
+    useChats.getState().wipe();
+    answer();
+    await sending;
+
+    expect(useChats.getState().chats).toEqual({});
+    expect(localStorage.length).toBe(0);
+  });
+
+  it("retries only ❗ and ❔ messages", async () => {
+    server.use(sentAs("BAE6"));
+    save(A, {
+      [RU]: chat(RU, {
+        messages: [
+          message({ id: "ok", status: "sent" }),
+          message({ id: "no", status: "failed", idMessage: undefined }),
+        ],
+      }),
+    });
+    useChats.getState().open(A);
+
+    await useChats.getState().retry(CREDS, RU, "ok");
+    expect(requests).toEqual([]);
+    await useChats.getState().retry(CREDS, RU, "no");
+
+    expect(posted.map((p) => p.body)).toEqual([
+      { chatId: RU, message: "Привет" },
+    ]);
+    expect(useChats.getState().chats[RU].messages[1]).toMatchObject({
+      status: "sent",
+      idMessage: "BAE6",
+    });
   });
 });
