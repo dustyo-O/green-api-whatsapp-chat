@@ -125,6 +125,7 @@ const CASES: [string, Parameters<typeof server.use>, CheckError | null][] = [
 ];
 
 describe("checkInstance", () => {
+  // @regression — functional §2.2: every outcome → one message (tech §2.2 mapping)
   it.each(
     CASES.map(([name, handlers, expected]) => ({ name, handlers, expected })),
   )("$name → $expected", async ({ handlers, expected }) => {
@@ -133,6 +134,7 @@ describe("checkInstance", () => {
     expect(await checkInstance(CREDENTIALS)).toBe(expected);
   });
 
+  // @regression — functional §2.2 c6
   it("gives up with the catch-all when GREEN-API doesn't answer in time", async () => {
     server.use(hang("getStateInstance"));
 
@@ -145,6 +147,7 @@ describe("checkInstance", () => {
     expect(await checkInstance(CREDENTIALS, { timeoutMs: 50 })).toBe("unknown");
   });
 
+  // @regression — functional §2.2: settings only matter for an authorized instance
   it("doesn't ask for settings when the instance isn't authorized", async () => {
     server.use(stateIs("notAuthorized"), settingsAre(READY_SETTINGS));
 

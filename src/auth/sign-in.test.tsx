@@ -103,7 +103,7 @@ describe("§2.1 sign-in form", () => {
     expect(screen.queryByText(URL_HINT)).toBeNull();
   });
 
-  // c1
+  // @regression — functional §2.1 c1
   it("fills in a read-only API URL from the first four digits of idInstance", async () => {
     const user = userEvent.setup();
     await openPage();
@@ -116,7 +116,7 @@ describe("§2.1 sign-in form", () => {
     expect(field("API URL").readOnly).toBe(true);
   });
 
-  // c2
+  // @regression — functional §2.1 c2
   it("lets the user type another API URL and puts the filled-in one back on untick", async () => {
     const user = userEvent.setup();
     await openPage();
@@ -133,7 +133,7 @@ describe("§2.1 sign-in form", () => {
     expect(field("API URL").readOnly).toBe(true);
   });
 
-  // c3
+  // @regression — functional §2.1 c3
   it("hints at digits-only and keeps «Войти» inactive when idInstance has letters", async () => {
     const user = userEvent.setup();
     await openPage();
@@ -144,7 +144,7 @@ describe("§2.1 sign-in form", () => {
     expect(signInButton().disabled).toBe(true);
   });
 
-  // c4
+  // @regression — functional §2.1 c4
   it("hints at a full https address and keeps «Войти» inactive for a bare https://", async () => {
     const user = userEvent.setup();
     await openPage();
@@ -158,7 +158,7 @@ describe("§2.1 sign-in form", () => {
     expect(signInButton().disabled).toBe(true);
   });
 
-  // c5
+  // @regression — functional §2.1 c5
   it("switches the token between dots and readable text", async () => {
     const user = userEvent.setup();
     await openPage();
@@ -171,6 +171,7 @@ describe("§2.1 sign-in form", () => {
     expect(field("apiTokenInstance").type).toBe("password");
   });
 
+  // @regression — functional §2.1: spaces at the start and end are ignored
   it("ignores spaces around the values", async () => {
     server.use(...ready());
     const user = userEvent.setup();
@@ -181,10 +182,95 @@ describe("§2.1 sign-in form", () => {
 
     expect(await screen.findByText("Инстанс 7103123456")).toBeDefined();
   });
+
+  // @regression — functional §2.1: only a plain https address (a trailing `/` is ignored)
+  it.each([
+    ["http://7103.api.greenapi.com", true],
+    ["https://7103.api.greenapi.com/base", true],
+    ["https://7103.api.greenapi.com?x=1", true],
+    ["https://7103.api.greenapi.com/#x", true],
+    ["https://7103.api.greenapi.com/", false],
+  ])("API URL %s → hint: %s", async (apiUrl, invalid) => {
+    const user = userEvent.setup();
+    await openPage();
+    await fillIn(user);
+
+    await user.click(field("Указать API URL вручную"));
+    await user.clear(field("API URL"));
+    await user.type(field("API URL"), apiUrl);
+
+    expect(screen.queryByText(URL_HINT) !== null).toBe(invalid);
+    expect(signInButton().disabled).toBe(invalid);
+  });
+
+  // @regression — functional §2.1: an empty field keeps «Войти» inactive without a hint
+  it("keeps «Войти» inactive without a hint for a token of spaces only", async () => {
+    const user = userEvent.setup();
+    await openPage();
+
+    await fillIn(user, "7103123456", "   ");
+
+    expect(signInButton().disabled).toBe(true);
+    expect(screen.queryByText(ID_HINT)).toBeNull();
+    expect(screen.queryByText(URL_HINT)).toBeNull();
+  });
 });
 
 describe("§2.2 signing in only with a ready instance", () => {
-  // c1 + §2.3 c1
+  // @regression — functional §2.2 messages table: one message per situation, input kept, «Проверить снова»
+  it.each([
+    [
+      "the phone is offline",
+      [stateIs("sleepMode")],
+      "Телефон с WhatsApp не в сети. Включите его и проверьте снова.",
+    ],
+    [
+      "the instance is starting",
+      [stateIs("starting")],
+      "Инстанс запускается. Попробуйте через минуту.",
+    ],
+    [
+      "the instance is blocked",
+      [stateIs("blocked")],
+      "Инстанс заблокирован. Проверьте его в консоли GREEN-API.",
+    ],
+    [
+      "the instance is suspended",
+      [stateIs("suspended")],
+      "Работа инстанса временно ограничена. Проверьте его в консоли GREEN-API.",
+    ],
+    [
+      "the instance has a yellow card",
+      [stateIs("yellowCard")],
+      "Работа инстанса временно ограничена. Проверьте его в консоли GREEN-API.",
+    ],
+    [
+      "GREEN-API fails",
+      [status("getStateInstance", 500)],
+      "Не удалось проверить инстанс. Попробуйте ещё раз.",
+    ],
+    [
+      "the settings call is refused",
+      [stateIs("authorized"), status("getSettings", 403)],
+      "Неверный idInstance или apiTokenInstance.",
+    ],
+  ])("explains when %s", async (_situation, handlers, message) => {
+    server.use(...handlers);
+    const user = userEvent.setup();
+    await openPage();
+
+    await signIn(user);
+
+    expect((await screen.findByRole("alert")).textContent).toContain(message);
+    expect(field("idInstance").value).toBe("7103123456");
+    expect(field("apiTokenInstance").value).toBe("faketoken");
+    expect(
+      screen.getByRole("button", { name: "Проверить снова" }),
+    ).toBeDefined();
+    expect(screen.queryByText("Инстанс 7103123456")).toBeNull();
+  });
+
+  // @regression — functional §2.2 c1 + §2.3 c1
   it("opens the main screen for a ready instance", async () => {
     server.use(...ready());
     const user = userEvent.setup();
@@ -200,7 +286,7 @@ describe("§2.2 signing in only with a ready instance", () => {
     expect(requests).toEqual(["getStateInstance", "getSettings"]);
   });
 
-  // c2
+  // @regression — functional §2.2 c2
   it("shows the wrong-credentials message and keeps what was typed", async () => {
     server.use(status("getStateInstance", 401));
     const user = userEvent.setup();
@@ -216,7 +302,7 @@ describe("§2.2 signing in only with a ready instance", () => {
     expect(field("API URL").value).toBe("https://7103.api.greenapi.com");
   });
 
-  // c3
+  // @regression — functional §2.2 c3
   it("names the API URL it could not reach", async () => {
     server.use(unreachable("getStateInstance"));
     const user = userEvent.setup();
@@ -233,7 +319,7 @@ describe("§2.2 signing in only with a ready instance", () => {
     );
   });
 
-  // c4
+  // @regression — functional §2.2 c4
   it("lets the user in on «Проверить снова» once the instance is authorized", async () => {
     server.use(stateIs("notAuthorized"));
     const user = userEvent.setup();
@@ -249,7 +335,7 @@ describe("§2.2 signing in only with a ready instance", () => {
     expect(await screen.findByText("Инстанс 7103123456")).toBeDefined();
   });
 
-  // c5
+  // @regression — functional §2.2 c5 (and the app never changes the settings itself)
   it.each([
     [
       { webhookUrl: "https://hook.example", incomingWebhook: "yes" },
@@ -267,9 +353,11 @@ describe("§2.2 signing in only with a ready instance", () => {
     await signIn(user);
 
     expect((await screen.findByRole("alert")).textContent).toContain(message);
+    // Read-only: no setSettings or any other call to fix the instance.
+    expect(requests).toEqual(["getStateInstance", "getSettings"]);
   });
 
-  // c6
+  // @regression — functional §2.2 c6
   it("gives up after 15 seconds, keeps the input and offers «Проверить снова»", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     server.use(hang("getStateInstance"));
@@ -295,7 +383,7 @@ describe("§2.2 signing in only with a ready instance", () => {
     ).toBeDefined();
   });
 
-  // c7
+  // @regression — functional §2.2 c7
   it("shows that it is working and checks exactly once however often «Войти» is pressed", async () => {
     const state = gated("getStateInstance", { stateInstance: "notAuthorized" });
     server.use(state.handler);
@@ -316,7 +404,7 @@ describe("§2.2 signing in only with a ready instance", () => {
 });
 
 describe("§2.4 remembered session", () => {
-  // c1
+  // @regression — functional §2.4 c1
   it("re-checks the saved credentials on reload, then opens the main screen", async () => {
     const state = gated("getStateInstance", { stateInstance: "authorized" });
     server.use(
@@ -332,6 +420,7 @@ describe("§2.4 remembered session", () => {
     expect(await screen.findByText("Инстанс 7103123456")).toBeDefined();
   });
 
+  // @regression — functional §2.4: the user stays signed in in this browser
   it("remembers a sign-in made through the form", async () => {
     server.use(...ready());
     const user = userEvent.setup();
@@ -344,7 +433,7 @@ describe("§2.4 remembered session", () => {
     expect(await screen.findByText("Инстанс 7103123456")).toBeDefined();
   });
 
-  // c2
+  // @regression — functional §2.4 c2
   it("brings back the filled-in form with the reason when the saved instance is no longer ready", async () => {
     server.use(stateIs("notAuthorized"));
     saveSession({
@@ -364,6 +453,7 @@ describe("§2.4 remembered session", () => {
     expect(field("Указать API URL вручную").checked).toBe(true);
   });
 
+  // @regression — functional §2.4: saved values that can't be read → empty form
   it.each([
     ["unreadable JSON", "{not json"],
     [
@@ -385,7 +475,7 @@ describe("§2.4 remembered session", () => {
 });
 
 describe("§2.5 logout", () => {
-  // c1
+  // @regression — functional §2.5 c1
   it("empties the form on «Выйти» and keeps it after a reload", async () => {
     server.use(...ready());
     saveSession(SAVED);
