@@ -28,6 +28,24 @@ const CREDENTIALS = {
 
 const authorized = stateIs("authorized");
 
+/** Answers 429 the first `times` calls of `method`, then like `then`. */
+const tooManyRequests = (
+  method: "getStateInstance" | "getSettings",
+  times: number,
+  then: () => Response,
+) => {
+  let calls = 0;
+  return reply(method, () => {
+    calls += 1;
+    return calls <= times
+      ? new HttpResponse(null, {
+          status: 429,
+          headers: { "Content-Type": "application/json" },
+        })
+      : then();
+  });
+};
+
 // One row per line of tech §2.2.
 const CASES: [string, Parameters<typeof server.use>, CheckError | null][] = [
   [
@@ -37,7 +55,6 @@ const CASES: [string, Parameters<typeof server.use>, CheckError | null][] = [
   ],
   ["403", [status("getStateInstance", 403)], "wrongCredentials"],
   ["fetch TypeError", [unreachable("getStateInstance")], "unreachable"],
-  ["429", [status("getStateInstance", 429)], "unknown"],
   ["500", [status("getStateInstance", 500)], "unknown"],
   ["404", [status("getStateInstance", 404)], "unknown"],
   [
@@ -155,5 +172,81 @@ describe("checkInstance", () => {
       `${API_URL}/waInstance7103123456/getStateInstance/faketoken`,
       `${API_URL}/waInstance7103123456/getSettings/faketoken`,
     ]);
+  });
+
+  describe("on 429 (TKT-3)", () => {
+    const FAST = { retryDelayMs: 10 };
+
+    it("retries getStateInstance once and signs in", async () => {
+      server.use(
+        tooManyRequests("getStateInstance", 1, () =>
+          HttpResponse.json({ stateInstance: "authorized" }),
+        ),
+        settingsAre(READY_SETTINGS),
+      );
+
+      expect(await checkInstance(CREDENTIALS, FAST)).toBeNull();
+      expect(requests).toEqual([
+        "getStateInstance",
+        "getStateInstance",
+        "getSettings",
+      ]);
+    });
+
+    it("retries getSettings once and signs in", async () => {
+      server.use(
+        authorized,
+        tooManyRequests("getSettings", 1, () =>
+          HttpResponse.json(READY_SETTINGS),
+        ),
+      );
+
+      expect(await checkInstance(CREDENTIALS, FAST)).toBeNull();
+      expect(requests).toEqual([
+        "getStateInstance",
+        "getSettings",
+        "getSettings",
+      ]);
+    });
+
+    it("gives up with the catch-all on a second 429", async () => {
+      server.use(status("getStateInstance", 429));
+
+      expect(await checkInstance(CREDENTIALS, FAST)).toBe("unknown");
+      expect(requests).toEqual(["getStateInstance", "getStateInstance"]);
+    });
+
+    it("waits about 1.1 s before the retry by default", async () => {
+      server.use(
+        tooManyRequests("getStateInstance", 1, () =>
+          HttpResponse.json({ stateInstance: "notAuthorized" }),
+        ),
+      );
+      const started = Date.now();
+
+      expect(await checkInstance(CREDENTIALS)).toBe("notAuthorized");
+      expect(Date.now() - started).toBeGreaterThanOrEqual(1_000);
+    });
+
+    it("doesn't wait past the time budget", async () => {
+      server.use(status("getStateInstance", 429));
+      const started = Date.now();
+
+      expect(
+        await checkInstance(CREDENTIALS, {
+          timeoutMs: 50,
+          retryDelayMs: 5_000,
+        }),
+      ).toBe("unknown");
+      expect(Date.now() - started).toBeLessThan(1_000);
+      expect(requests).toEqual(["getStateInstance"]);
+    });
+
+    it("doesn't retry other errors", async () => {
+      server.use(status("getStateInstance", 500));
+
+      expect(await checkInstance(CREDENTIALS, FAST)).toBe("unknown");
+      expect(requests).toEqual(["getStateInstance"]);
+    });
   });
 });
