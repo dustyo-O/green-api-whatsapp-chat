@@ -434,6 +434,30 @@ describe("§2.1 starting a chat", () => {
     ).toBeDefined();
     expect(localStorage.getItem(CHATS_KEY) ?? "").not.toContain(RU);
   });
+
+  // @regression — review F2: closing the row while checking drops that check's answer
+  it("drops a check answer that arrives after the row was closed and reopened", async () => {
+    signedIn();
+    const check = gatedCheck();
+    server.use(check.handler);
+    const user = userEvent.setup();
+    await openPage();
+    await startChat(user, "903 747-44-11");
+
+    await user.click(plus());
+    await user.click(plus());
+    await user.type(numberField(), "629443720");
+    await act(async () => {
+      check.open();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+
+    expect(
+      screen.getByText("Нет чатов. Нажмите «+», чтобы начать"),
+    ).toBeDefined();
+    expect(conversationTitle()).toBeNull();
+    expect(numberField().value).toBe("629443720");
+  });
 });
 
 describe("§2.2 chat list", () => {
