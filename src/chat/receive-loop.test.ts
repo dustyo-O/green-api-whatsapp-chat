@@ -8,8 +8,11 @@ import {
   failure,
   queue,
   received,
+  requests,
   server,
   setupGreenApiServer,
+  stateIs,
+  status as answer,
 } from "../test/green-api-server";
 import { storageKey, useChats } from "./chats-store";
 import {
@@ -268,6 +271,7 @@ describe("runReceiveLoop", () => {
   // @regression — tech §2.4: 1 → 2 → 4 → 5 → 5 s on any failure, reset by a successful receive
   it("backs off 1, 2, 4, 5, 5 seconds, and starts over after a success", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    server.use(answer("getStateInstance", 401)); // asked after the receive 401
     queue(
       failure(500),
       HttpResponse.error(),
@@ -480,12 +484,16 @@ describe("runReceiveLoop → status", () => {
     });
   });
 
-  // @regression — tech §2.2 row 2: 401 and 403 → the key banner, never the stuck clock
+  // @regression — tech §2.2 row 2, §3 risk 1: 401 and 403, confirmed by getStateInstance → the key
+  // banner, never the stuck clock
   it.each([401, 403])(
     "marks the key invalid on %i, without starting the stuck clock",
     async (code) => {
       vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-      server.use(http.get("*/receiveNotification/*", () => failure(code)));
+      server.use(
+        http.get("*/receiveNotification/*", () => failure(code)),
+        answer("getStateInstance", code),
+      );
 
       start();
       await flush();
@@ -499,6 +507,42 @@ describe("runReceiveLoop → status", () => {
       });
     },
   );
+
+  // @regression — tech §3 risk 1: a logged-out instance may refuse receive like a bad key
+  it("shows the instance state, not the key, when getStateInstance answers after a 401", async () => {
+    server.use(stateIs("notAuthorized"));
+    queue(failure(401));
+
+    start();
+
+    await vi.waitFor(() => {
+      expect(status().instanceState).toBe("notAuthorized");
+    });
+    expect(status().keyInvalid).toBe(false);
+    expect(requests).toEqual(["getStateInstance"]);
+  });
+
+  // @regression — tech §3 risk 1: a failed check keeps the conditions; the next cycle asks again
+  it("keeps the conditions when the check after a 401 fails, and asks again on the next 401", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    server.use(answer("getStateInstance", 500));
+    queue(failure(401), failure(401));
+
+    start();
+    await flush();
+    expect(requests).toEqual(["getStateInstance"]);
+    expect(status()).toMatchObject({
+      keyInvalid: false,
+      instanceState: "authorized",
+      stuck: false,
+    });
+
+    server.use(answer("getStateInstance", 401));
+    await advance(1_000);
+
+    expect(requests).toEqual(["getStateInstance", "getStateInstance"]);
+    expect(status().keyInvalid).toBe(true);
+  });
 
   // @regression — tech §2.2 row 3: one network failure is not yet «Нет соединения»
   it("shows no connection after two network failures in a row, not one", async () => {

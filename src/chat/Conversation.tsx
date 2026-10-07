@@ -3,6 +3,7 @@ import { useSession } from "../auth/session-store";
 import { useChats, type Chat, type MessageStatus } from "./chats-store";
 import { Composer } from "./Composer";
 import { UNSUPPORTED_TEXT } from "./notification";
+import { pausedBy, useStatus } from "./status-store";
 import { chatTitle } from "./phone";
 import { formatTime } from "./time";
 import styles from "./Conversation.module.css";
@@ -24,6 +25,8 @@ export function Conversation({ chatId }: { chatId: string }) {
   const messages = chat?.messages ?? [];
   const retry = useChats((s) => s.retry);
   const credentials = useSession((s) => s.credentials);
+  // A hint only: `retry` itself does nothing while paused.
+  const paused = useStatus((s) => pausedBy(s) !== null);
   const listRef = useRef<HTMLOListElement>(null);
 
   useEffect(() => {
@@ -62,6 +65,7 @@ export function Conversation({ chatId }: { chatId: string }) {
                   <button
                     type="button"
                     className={styles.retry}
+                    disabled={paused}
                     onClick={() => {
                       if (
                         credentials === null ||

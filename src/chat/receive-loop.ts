@@ -6,7 +6,9 @@ import {
 } from "../api/green-api";
 import { useChats } from "./chats-store";
 import { toIncoming, toStateChange } from "./notification";
+import { checkState } from "./state-watch";
 import { useStatus, type StatusState } from "./status-store";
+import { sleep, within } from "./wait";
 
 const RECEIVE_TIMEOUT_S = 5;
 /** The long poll plus 3 s: a poll stalled by an upstream cut recovers within 10 s (review 3 F1). */
@@ -27,41 +29,6 @@ function classify(error: unknown): "network" | "key" | "stuck" {
     if (error.status === 401 || error.status === 403) return "key";
   }
   return "stuck";
-}
-
-/** Runs `call` with a signal that aborts after `timeoutMs` or when `cancel` aborts. */
-async function within<T>(
-  timeoutMs: number,
-  cancel: AbortSignal,
-  call: (signal: AbortSignal) => Promise<T>,
-): Promise<T> {
-  const controller = new AbortController();
-  const abort = () => {
-    controller.abort();
-  };
-  const timer = setTimeout(abort, timeoutMs);
-  cancel.addEventListener("abort", abort);
-  if (cancel.aborted) abort();
-  try {
-    return await call(controller.signal);
-  } finally {
-    clearTimeout(timer);
-    cancel.removeEventListener("abort", abort);
-  }
-}
-
-/** Waits `ms`, or less if `cancel` aborts. */
-function sleep(ms: number, cancel: AbortSignal): Promise<void> {
-  return new Promise((resolve) => {
-    const done = () => {
-      clearTimeout(timer);
-      cancel.removeEventListener("abort", done);
-      resolve();
-    };
-    const timer = setTimeout(done, ms);
-    cancel.addEventListener("abort", done);
-    if (cancel.aborted) done();
-  });
 }
 
 /**
@@ -111,19 +78,25 @@ export async function runReceiveLoop(
     stuckTimer = undefined;
     write({ stuck: false });
   };
-  const fail = (error: unknown) => {
+  const fail = async (error: unknown) => {
     const kind = classify(error);
     if (kind === "network") {
       if (++networkFailures >= OFFLINE_AFTER) write({ noConnection: true });
       return;
     }
     networkFailures = 0;
-    if (kind === "key") write({ keyInvalid: true });
+    if (kind === "key") {
+      if (stopped()) return;
+      // A logged-out instance may refuse the same way: only its state tells the two apart
+      // (tech §3 risk 1). A failed check keeps everything; the next cycle asks again.
+      const patch = await checkState(credentials, wake.signal);
+      if (patch !== null) write(patch);
+      return;
+    }
     // Started by the first such failure, never restarted by the next ones.
-    else
-      stuckTimer ??= setTimeout(() => {
-        write({ stuck: true });
-      }, STUCK_AFTER_MS);
+    stuckTimer ??= setTimeout(() => {
+      write({ stuck: true });
+    }, STUCK_AFTER_MS);
   };
 
   try {
@@ -137,7 +110,7 @@ export async function runReceiveLoop(
       } catch (error) {
         // Woken by `online` or stopped: not a failure, poll again at once.
         if (wake.signal.aborted) continue;
-        fail(error);
+        await fail(error);
         await backOff();
         continue;
       }
@@ -158,7 +131,7 @@ export async function runReceiveLoop(
       try {
         if (incoming !== null) useChats.getState().receive(incoming);
       } catch (error) {
-        fail(error);
+        await fail(error);
         await backOff();
         continue;
       }
@@ -173,7 +146,7 @@ export async function runReceiveLoop(
         // The head stays queued and comes back; dedupe absorbs it. Only a delete resets the backoff,
         // so a delete that keeps failing never loops hot.
         if (wake.signal.aborted) continue;
-        fail(error);
+        await fail(error);
         await backOff();
       }
     }

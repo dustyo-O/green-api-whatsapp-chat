@@ -9,10 +9,17 @@ import {
   API_URL,
   deleted,
   failure,
+  posted,
   queue,
   ready,
+  reply as answer,
+  requests,
+  sentAs,
   server,
   setupGreenApiServer,
+  stateIs,
+  status,
+  whatsappExists,
 } from "../test/green-api-server";
 import { stateChanged, textBody } from "./notification.fixtures";
 
@@ -28,6 +35,11 @@ const BLOCKED = "Инстанс заблокирован. Проверьте е�
 const KEY = "Ключ доступа больше не действует. Войдите заново.";
 const STUCK = "Не удаётся получить новые сообщения. Пробуем снова…";
 const INTRO = "Выберите чат, чтобы начать переписку";
+const PLACEHOLDER = "Введите сообщение";
+const OFFLINE_PLACEHOLDER =
+  "Нет соединения — сообщение можно будет отправить позже";
+const AUTH_PLACEHOLDER = "Инстанс не авторизован — отправка недоступна";
+const KEY_PLACEHOLDER = "Ключ доступа не действует — отправка недоступна";
 
 let receipts = 0;
 const notification = (body: unknown) => ({ receiptId: ++receipts, body });
@@ -53,8 +65,8 @@ function unmount() {
   }
 }
 
-/** Signed in, with a `+7 903 747-44-11` chat holding one sent message; the page open. */
-async function openPage() {
+/** Signed in, with a `+7 903 747-44-11` chat holding one sent message (then `more`); the page open. */
+async function openPage(more: unknown[] = []) {
   localStorage.setItem(
     "green-api-chat:session",
     JSON.stringify({
@@ -87,6 +99,7 @@ async function openPage() {
                 status: "sent",
                 idMessage: "OUT-1",
               },
+              ...more,
             ],
           },
         },
@@ -112,8 +125,8 @@ async function openPage() {
   await screen.findByText(`Инстанс ${ID}`);
 }
 
-async function openChat(user: UserEvent) {
-  await openPage();
+async function openChat(user: UserEvent, more: unknown[] = []) {
+  await openPage(more);
   await user.click(
     within(screen.getByRole("list", { name: "Чаты" })).getByRole("button"),
   );
@@ -140,6 +153,12 @@ const bubbleTexts = () =>
   within(screen.getByRole("list", { name: "Сообщения" }))
     .queryAllByRole("listitem")
     .map((b) => b.firstChild?.textContent);
+
+const composer = () => screen.getByRole<HTMLTextAreaElement>("textbox");
+const lastBubble = () =>
+  within(screen.getByRole("list", { name: "Сообщения" }))
+    .getAllByRole("listitem")
+    .at(-1)?.textContent ?? "";
 
 function goOffline() {
   act(() => {
@@ -294,15 +313,48 @@ describe("§2.3 instance not authorized", () => {
     expect(bubbleTexts()).toEqual(["Привет"]);
   });
 
-  // @regression — functional §2.3 c3 (the text; sending paused is slice 2)
-  it("reads «Инстанс заблокирован…» when the instance is blocked", async () => {
-    await openPage();
+  // @regression — functional §2.3 c3
+  it("reads «Инстанс заблокирован…» when the instance is blocked, and sending is paused", async () => {
+    const user = userEvent.setup();
+    server.use(sentAs("BAE5"));
+    await openChat(user);
 
     queue(notification(stateChanged("blocked")));
 
     await vi.waitFor(() => {
       expect(bannerText()).toBe(BLOCKED);
     });
+    expect(bannerIs("danger")).toBe(true);
+    await user.type(composer(), "Привет{Enter}");
+    expect(bubbleTexts()).toEqual(["Привет"]);
+    expect(composer().value).toBe("Привет");
+    expect(posted).toEqual([]);
+  });
+
+  // @regression — functional §2.3 c4, tech §2.1: no notification at all, only the 4-minute watch
+  it("shows the red banner within 5 minutes of a logout when nothing else happens", async () => {
+    fakeTimers();
+    // A healthy long poll that comes back empty every 5 s.
+    server.use(
+      http.get("*/receiveNotification/*", async () => {
+        await delay(5_000);
+        return new HttpResponse("", {
+          headers: { "Content-Type": "application/json" },
+        });
+      }),
+    );
+    await openPage();
+    server.use(stateIs("notAuthorized")); // logged out in the console
+
+    for (let s = 0; s < 3 * 60; s++) {
+      await act(() => vi.advanceTimersByTimeAsync(1_000));
+    }
+    expect(banner()).toBeNull();
+    for (let s = 0; s < 2 * 60; s++) {
+      await act(() => vi.advanceTimersByTimeAsync(1_000));
+    }
+
+    expect(bannerText()).toBe(NOT_AUTHORIZED);
     expect(bannerIs("danger")).toBe(true);
   });
 });
@@ -313,12 +365,14 @@ describe("§2.4 access key no longer works", () => {
     const user = userEvent.setup();
     await openChat(user);
 
+    server.use(status("getStateInstance", 401)); // the check after a 401 confirms the key
     queue(failure(401));
 
     const shown = await screen.findByRole("status");
     expect(shown.firstChild?.textContent).toBe(KEY);
     expect(bannerIs("danger")).toBe(true);
     expect(screen.getByText(`Инстанс ${ID}`)).toBeDefined(); // not signed out by itself
+    expect(composer().placeholder).toBe(KEY_PLACEHOLDER);
 
     await user.click(within(shown).getByRole("button", { name: "Выйти" }));
 
@@ -387,5 +441,180 @@ describe("§2.5 receiving stuck", () => {
     await act(() => vi.advanceTimersByTimeAsync(50_000));
 
     expect(banner()).toBeNull();
+  });
+});
+
+describe("§2.6 sending paused", () => {
+  const newChatNumber = () =>
+    screen.getByRole<HTMLInputElement>("textbox", { name: "Номер телефона" });
+  const startButton = () =>
+    screen.getByRole<HTMLButtonElement>("button", {
+      name: /Начать чат|Проверяем…/,
+    });
+
+  // @regression — functional §2.6 c1, c3
+  it("keeps «Привет» unsent while offline, explains it in the placeholder, and sends it once the banner is gone", async () => {
+    const user = userEvent.setup();
+    server.use(sentAs("BAE5"));
+    await openChat(user);
+    expect(composer().placeholder).toBe(PLACEHOLDER);
+    goOffline();
+    expect(bannerText()).toBe(OFFLINE);
+
+    await user.type(composer(), "Привет{Enter}");
+
+    expect(composer().value).toBe("Привет");
+    expect(bubbleTexts()).toEqual(["Привет"]);
+    expect(posted).toEqual([]);
+    expect(composer().placeholder).toBe(OFFLINE_PLACEHOLDER);
+
+    queue(null); // GREEN-API answers again
+    await vi.waitFor(() => {
+      expect(banner()).toBeNull();
+    });
+    expect(composer().value).toBe("Привет");
+    expect(composer().placeholder).toBe(PLACEHOLDER);
+    await user.type(composer(), "{Enter}");
+
+    await vi.waitFor(() => {
+      expect(lastBubble()).toContain("✅");
+    });
+    expect(bubbleTexts()).toEqual(["Привет", "Привет"]);
+    expect(posted.map((p) => p.body)).toEqual([
+      { chatId: RU, message: "Привет" },
+    ]);
+    expect(composer().value).toBe("");
+  });
+
+  // @regression — functional §2.6 c2
+  it("creates no bubble on Enter while the instance isn't authorized", async () => {
+    const user = userEvent.setup();
+    server.use(sentAs("BAE5"));
+    await openChat(user);
+    queue(notification(stateChanged("notAuthorized")));
+    await vi.waitFor(() => {
+      expect(bannerText()).toBe(NOT_AUTHORIZED);
+    });
+
+    await user.type(composer(), "Ещё раз{Enter}");
+
+    expect(bubbleTexts()).toEqual(["Привет"]);
+    expect(composer().value).toBe("Ещё раз");
+    expect(composer().placeholder).toBe(AUTH_PLACEHOLDER);
+    expect(posted).toEqual([]);
+  });
+
+  // @regression — functional §2.6 c4
+  it("creates no chat from «+» while offline", async () => {
+    const user = userEvent.setup();
+    server.use(whatsappExists(true));
+    await openPage();
+    goOffline();
+
+    await user.click(screen.getByRole("button", { name: "Новый чат" }));
+    await user.type(newChatNumber(), "9161234567");
+    expect(startButton().disabled).toBe(true);
+    await user.click(startButton());
+    await user.type(newChatNumber(), "{Enter}");
+
+    expect(requests).not.toContain("checkWhatsapp");
+    expect(chatTitles()).toEqual(["+7 903 747-44-11"]);
+    expect(newChatNumber().value).toBe("9161234567");
+  });
+
+  // @regression — functional §2.6 c4, review 3 F4: a check still running when the pause starts
+  it("creates no chat when the pause starts while the number is being checked, and keeps the number", async () => {
+    const user = userEvent.setup();
+    let release = () => {};
+    const answered = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    server.use(
+      answer("checkWhatsapp", async () => {
+        await answered;
+        return HttpResponse.json({ existsWhatsapp: true });
+      }),
+    );
+    await openPage();
+    await user.click(screen.getByRole("button", { name: "Новый чат" }));
+    await user.type(newChatNumber(), "9161234567{Enter}");
+    await vi.waitFor(() => {
+      expect(startButton().textContent).toBe("Проверяем…");
+    });
+
+    goOffline();
+    release();
+
+    await vi.waitFor(() => {
+      expect(startButton().textContent).toBe("Начать чат");
+    });
+    expect(chatTitles()).toEqual(["+7 903 747-44-11"]);
+    expect(newChatNumber().value).toBe("9161234567");
+    expect(screen.queryByRole("alert")).toBeNull();
+
+    queue(null); // the banner goes away; the kept number can start the chat now
+    await vi.waitFor(() => {
+      expect(startButton().disabled).toBe(false);
+    });
+    await user.click(startButton());
+    await vi.waitFor(() => {
+      expect(chatTitles()).toEqual(["+7 916 123-45-67", "+7 903 747-44-11"]);
+    });
+  });
+
+  // @regression — functional §2.6 c5
+  it("sends nothing on «Повторить» while the instance isn't authorized, and the message keeps ❗", async () => {
+    const user = userEvent.setup();
+    server.use(sentAs("BAE5"));
+    await openChat(user, [
+      {
+        id: "out-2",
+        direction: "out",
+        text: "Не ушло",
+        time: 3_000,
+        status: "failed",
+      },
+    ]);
+    queue(notification(stateChanged("notAuthorized")));
+    await vi.waitFor(() => {
+      expect(bannerText()).toBe(NOT_AUTHORIZED);
+    });
+
+    const retry = screen.getByRole<HTMLButtonElement>("button", {
+      name: "Повторить",
+    });
+    expect(retry.disabled).toBe(true);
+    await user.click(retry);
+
+    expect(lastBubble()).toContain("❗");
+    expect(posted).toEqual([]);
+  });
+
+  // @regression — functional §2.6 c6
+  it("sends as usual while only the grey banner is shown", async () => {
+    const user = fakeTimers();
+    server.use(sentAs("BAE5"));
+    let failing = false;
+    server.use(
+      http.get("*/receiveNotification/*", () =>
+        failing ? failure(500) : undefined,
+      ),
+    );
+    await openChat(user);
+    failing = true;
+    queue(); // ends the poll in flight
+    await act(() => vi.advanceTimersByTimeAsync(65_000));
+    expect(bannerText()).toBe(STUCK);
+    expect(composer().placeholder).toBe(PLACEHOLDER);
+
+    await user.type(composer(), "Всё равно{Enter}");
+
+    await vi.waitFor(() => {
+      expect(lastBubble()).toContain("✅");
+    });
+    expect(bubbleTexts()).toEqual(["Привет", "Всё равно"]);
+    expect(posted.map((p) => p.body)).toEqual([
+      { chatId: RU, message: "Всё равно" },
+    ]);
   });
 });

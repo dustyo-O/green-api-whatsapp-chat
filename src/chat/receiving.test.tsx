@@ -671,7 +671,8 @@ describe("the whole feature (acceptance)", () => {
     await openRuChat(user);
 
     queue(failure(401), failure(429), failure(500), reply("После паузы"));
-    await vi.advanceTimersByTimeAsync(10_000);
+    // In steps: after the 401 the loop asks getStateInstance (spec 005), real I/O between timers.
+    for (let s = 0; s < 10; s++) await vi.advanceTimersByTimeAsync(1_000);
 
     expect(within(messageList()).getByText("После паузы")).toBeDefined();
     expect(received.length).toBeGreaterThanOrEqual(4);
