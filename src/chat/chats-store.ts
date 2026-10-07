@@ -3,6 +3,7 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import type { Credentials } from "../api/green-api";
 import type { Incoming } from "./notification";
 import { sendText, type SendOutcome } from "./outcomes";
+import { pausedBy, useStatus } from "./status-store";
 
 export type MessageStatus = "sending" | "sent" | "failed" | "unknown";
 
@@ -64,7 +65,10 @@ interface ChatsState {
   /** Clears the chat's unread count. */
   select: (chatId: string) => void;
   setDraft: (chatId: string, draft: string) => void;
-  /** Appends the message as 🕓, clears the draft, then settles it on GREEN-API's answer. */
+  /**
+   * Appends the message as 🕓, clears the draft, then settles it on GREEN-API's answer. A no-op
+   * while sending is paused (spec 005 functional §2.6).
+   */
   send: (
     credentials: Credentials,
     chatId: string,
@@ -76,7 +80,7 @@ interface ChatsState {
    * if it can't be saved.
    */
   receive: (incoming: Incoming) => void;
-  /** Sends a ❗/❔ message again: the same bubble goes back to 🕓, then settles. */
+  /** Sends a ❗/❔ message again: the same bubble goes back to 🕓, then settles. Paused like `send`. */
   retry: (
     credentials: Credentials,
     chatId: string,
@@ -324,7 +328,13 @@ export const useChats = create<ChatsState>()(
         },
 
         send: async (credentials, chatId, text) => {
-          if (get().idInstance === null || !(chatId in get().chats)) return;
+          if (
+            get().idInstance === null ||
+            !(chatId in get().chats) ||
+            pausedBy(useStatus.getState()) !== null
+          ) {
+            return;
+          }
           const message: Message = {
             id: crypto.randomUUID(),
             direction: "out",
@@ -346,6 +356,7 @@ export const useChats = create<ChatsState>()(
           const message = chat?.messages.find((m) => m.id === messageId);
           if (
             get().idInstance === null ||
+            pausedBy(useStatus.getState()) !== null ||
             message?.direction !== "out" ||
             (message.status !== "failed" && message.status !== "unknown")
           ) {

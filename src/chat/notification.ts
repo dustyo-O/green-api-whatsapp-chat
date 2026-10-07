@@ -100,11 +100,12 @@ const INSTANCE_STATES: readonly string[] = [
   "suspended",
 ];
 
+export const isInstanceState = (value: unknown): value is string =>
+  typeof value === "string" && INSTANCE_STATES.includes(value);
+
 /** The new instance state of a `stateInstanceChanged` notification, or `null`. Pure and total. */
 export function toStateChange(body: unknown): string | null {
   if (field(body, "typeWebhook") !== "stateInstanceChanged") return null;
   const state = field(body, "stateInstance");
-  return typeof state === "string" && INSTANCE_STATES.includes(state)
-    ? state
-    : null;
+  return isInstanceState(state) ? state : null;
 }
