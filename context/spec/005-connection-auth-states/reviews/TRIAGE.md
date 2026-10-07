@@ -10,3 +10,13 @@
 | F4 | major | accepted | «Повторить» paused too; in-flight sends finish honestly (✅ = accepted); overview guarantee narrowed. | functional §1, §2.6 (+ criterion) |
 | F5 | major | accepted | Missing state: every non-authorized state uses its spec 002 sign-in text; sending paused; recovers on authorized. | functional §2.3 (+ 2 criteria) |
 | F6 | major | accepted | "Receiving works" = empty check, or taken in **and** cleared; persistent delete failures count as stuck. | functional §2.5 (+ criterion) |
+
+## spec-codex-20261007-1502.md (codex · effort low · functional + technical) — verdict: DO NOT SHIP
+
+| # | severity | verdict | rationale | applied in |
+|---|---|---|---|---|
+| F1 | major | rejected: user decision b (spec 004, 2026-10-07); accepted: wording | Same timing as spec 004: 10 s for the device's own reconnect, 20 s after an upstream cut. Spec 005 §2.2 now says so explicitly. | functional §2.2; tech §2.2 |
+| F2 | major | accepted (minimal) | A failed watch check retries every 30 s until success, then back to 4 min; the 5-minute promise holds while GREEN-API can be reached. | tech §2.1; functional §2.3 |
+| F3 | minor | accepted | A cancellable 60 s timer from the first qualifying failure, cancelled only by "works" or the session ending. | tech §2.2 |
+| F4 | major | accepted | Re-check the pause after `checkWhatsapp` answers, before `addChat`/`select`; the number stays. | tech §2.4 |
+| F5 | major | accepted | Probe both logged-out and wrong-key cases; if they overlap, a 4xx on receive triggers one `getStateInstance`: state → auth, 401/403 → key, failure → keep and retry. | tech §3 risk 1 |

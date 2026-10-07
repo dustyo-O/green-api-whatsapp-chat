@@ -37,7 +37,7 @@ This feature makes each of these states visible with one clear banner. It pauses
   - within **3 seconds** when the device itself goes offline;
   - within **20 seconds** when the device stays online but GREEN-API can't be reached (for example the router or the internet provider dropped).
 - Any failure the app can't tell apart from a lost connection counts as "no connection".
-- It disappears by itself as soon as the app reaches GREEN-API again. Replies sent in the meantime then appear (as in "Receiving Replies").
+- It disappears by itself as soon as the app reaches GREEN-API again: within 10 seconds when the device's own connection comes back, within 20 seconds after a cut further away that the device didn't notice (as in "Receiving Replies"). Replies sent in the meantime then appear.
   - **Acceptance Criteria:**
     - [ ] Given the user is signed in, when the internet connection is turned off, then within 3 seconds they see «Нет соединения. Переподключаемся…».
     - [ ] Given the device stays online but GREEN-API can't be reached, when 20 seconds pass, then «Нет соединения. Переподключаемся…» is shown.
@@ -45,7 +45,7 @@ This feature makes each of these states visible with one clear banner. It pauses
 
 ### 2.3. Instance not authorized
 
-- When the instance stops being authorized while the user is signed in, the user sees a **red** banner within **5 minutes at most** (usually much sooner). It uses the same texts as sign-in ("Sign-In & Session"):
+- When the instance stops being authorized while the user is signed in, the user sees a **red** banner within **5 minutes at most** (usually much sooner), as long as GREEN-API can be reached (otherwise «Нет соединения» shows instead). It uses the same texts as sign-in ("Sign-In & Session"):
   - logged out: **«Инстанс не авторизован. Отсканируйте QR-код в консоли GREEN-API.»**
   - phone offline: «Телефон с WhatsApp не в сети. Включите его и проверьте снова.»
   - starting: «Инстанс запускается. Попробуйте через минуту.»
@@ -115,3 +115,4 @@ This feature makes each of these states visible with one clear banner. It pauses
 
 _Dated amendments made after the spec was first written — typically by `/awos:spec` in Update Mode when a bug fix changed documented behavior. Each entry records the date, the source reference (bug id or fix description), and what behavior changed and why. Leave empty until the first amendment._
 - 2026-10-07 — review `spec-codex` stage 2 — §1: ✅ guarantee narrowed to "no message sent while a pausing banner shows"; §2.2: 3 s for a device-offline event, 20 s for an unreachable service, ambiguous failures = no connection; §2.3: detection within 5 min, all non-authorized states with the sign-in texts; §2.5: "receiving works" defined (empty check, or taken in and cleared); §2.6: «Повторить» paused, in-flight sends finish.
+- 2026-10-07 — review `spec-codex` stage 3 — §2.2: recovery 10 s for the device's own reconnect, 20 s after an upstream cut (as spec 004, user decision b); §2.3: the 5-minute bound holds while GREEN-API can be reached.

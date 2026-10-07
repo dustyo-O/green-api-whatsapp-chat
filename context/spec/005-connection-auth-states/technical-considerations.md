@@ -37,7 +37,7 @@ Sending is paused by a guard in the store actions `send`/`retry` and in `NewChat
 - `stateInstanceChanged` is queued **only when the instance's `stateWebhook` setting is `yes`**: the console option "Receive notifications about the instance authorization state change". GREEN-API's docs say all settings are off by default on a new instance. The user's instance has it on (a real one was read in spec 004 slice 1). A reviewer's may not.
 - The design does **both**, with no branching on the setting:
   - **The notification (fast path):** a pure `toStateChange(body)` in `src/chat/notification.ts` returns `stateInstance` if `typeWebhook === "stateInstanceChanged"` and the value is one of `notAuthorized | authorized | blocked | sleepMode | starting | yellowCard | suspended`, else `null`. The loop sets the state, then deletes the notification as before.
-  - **The watch (the bound):** `src/chat/state-watch.ts` → `watchInstanceState(creds, signal)`. It sleeps **4 min**, calls `getStateInstance` with a 15 s budget, and repeats. The worst case is about 4 min 15 s, which is under the spec's 5 min, for both the logout and the recovery. The first check runs 4 min after mount, so it never collides with sign-in's own `getStateInstance` (1 rps limit). It starts from the same `MainScreen` effect as the receive loop and stops on the same `AbortController`.
+  - **The watch (the bound):** `src/chat/state-watch.ts` → `watchInstanceState(creds, signal)`. It sleeps **4 min**, calls `getStateInstance` with a 15 s budget, and repeats. **A failed check (timeout, 429, 5xx, network) retries every 30 s until one succeeds**, then goes back to 4 min (review 3 F2); the 5-minute promise holds while GREEN-API can be reached. The worst case is about 4 min 15 s, which is under the spec's 5 min, for both the logout and the recovery. The first check runs 4 min after mount, so it never collides with sign-in's own `getStateInstance` (1 rps limit). It starts from the same `MainScreen` effect as the receive loop and stops on the same `AbortController`.
 
 ### 2.2. Response → condition mapping (review F3)
 
@@ -53,10 +53,10 @@ Sending is paused by a guard in the store actions `send`/`retry` and in `NewChat
 - **The bounds, worst case:**
   - device offline → banner at once (≤ 3 s);
   - a stalled upstream with no `offline` → 8 s budget + 1 s backoff + 8 s budget, about 17 s (≤ 20 s);
-  - recovery → `online` wakes the loop, and the poll comes back empty within 5 s (≤ 10 s).
-- **`stuck`:** the loop keeps `stuckSince`.
-  - The first stuck-clock failure starts it. Any later stuck-clock failure that comes ≥ 60 s after the start sets `stuck`; failures repeat every ≤ 5 s, so the banner shows at 60–65 s.
-  - Only **works** resets it (an empty poll or a successful delete). A received but undeleted notification doesn't (review F6).
+  - recovery → `online` wakes the loop, and the poll comes back empty within 5 s (≤ 10 s). After an upstream cut with no `online` event, recovery takes up to about 18 s, within the 20 s of functional §2.2 (user decision b, spec 004; review 3 F1).
+- **`stuck`:** the first stuck-clock failure starts a **cancellable 60 s timer** that sets `stuck` when it fires (review 3 F3).
+  - Later stuck-clock failures don't restart it.
+  - Only **works** (an empty poll or a successful delete) or the end of the session cancels the timer and clears `stuck`. A received but undeleted notification doesn't (review F6).
   - Network and key failures neither start nor reset it.
 - **Writes stop after the session ends** (the existing session guard), so a late answer can't raise a banner on the sign-in screen.
 
@@ -71,7 +71,7 @@ Sending is paused by a guard in the store actions `send`/`retry` and in `NewChat
 ### 2.4. Sending paused (review F4)
 
 - **The guard lives in the store:** `useChats.send` and `useChats.retry` return early, **before** any change, when `pausedBy(useStatus.getState()) !== null`. No bubble is created, the draft stays, and ❗ stays ❗. This covers Enter and «Повторить» in one place. The import goes one way, chats → status.
-- **`NewChatForm`:** submit returns early while paused, and «Начать чат» is `disabled`. This also blocks opening an existing chat through the form, which is harmless.
+- **`NewChatForm`:** submit returns early while paused, and «Начать чат» is `disabled`. This also blocks opening an existing chat through the form, which is harmless. **It also re-checks `pausedBy` after `checkWhatsapp` answers and before `addChat`/`select`, keeping the number in the field** (review 3 F4).
 - **«Повторить»** is `disabled={paused}` as a UI hint; the store guard is the real one.
 - **`Composer`:** `placeholder` comes from the paused reason:
   - `offline` → «Нет соединения — сообщение можно будет отправить позже»;
@@ -105,7 +105,7 @@ Sending is paused by a guard in the store actions `send`/`retry` and in `NewChat
   - spec 002's per-state texts and `signOut`;
   - GREEN-API's `getStateInstance` (rate limit 1 rps).
 - **Potential Risks & Mitigations** (riskiest first; slice 1 takes #1):
-  1. **What receiving returns while the instance is logged out.** If it's a CORS 4xx instead of 200, the mapping would show the **key** banner instead of the auth one. *Mitigation:* slice 1 = the store, the mapping and the banner, plus a `[User]` token-safe `curl` of `receiveNotification?receiveTimeout=5` **and** `getStateInstance` on the user's still-logged-out instance (status and body shape only). If receive answers 4xx while logged out, add a row mapping it to `auth`.
+  1. **What receiving returns while the instance is logged out.** If it's a CORS 4xx instead of 200, the mapping would show the **key** banner instead of the auth one. *Mitigation:* slice 1 = the store, the mapping and the banner, plus a `[User]` token-safe probe of **both** conditions: `receiveNotification?receiveTimeout=5` and `getStateInstance` on the user's still-logged-out instance, **and** the same two calls with a deliberately wrong token (status and body shape only). **Disambiguation rule if the two overlap** (review 3 F5): a 4xx on receive triggers **one** `getStateInstance`. A state comes back → `auth`; 401/403 again → `key`; the check fails → keep the current banner and retry on the next cycle.
   2. **`stateWebhook` off on a reviewer's instance.** *Mitigation:* the 4-minute watch (by design). The README (Phase 3) can recommend turning it on for an instant banner.
   3. **Stale `stateInstanceChanged` backlog after sign-in** (an old `notAuthorized`, then `authorized`) briefly flickers the red banner while the queue drains. If no matching `authorized` was ever queued, the banner stays wrong until the next watch check (≤ 4 min). Accepted.
   4. **A CORS 403 that means something else** (e.g. an expired instance) shows the key banner with «Выйти». This is consistent with sign-in; accepted.
