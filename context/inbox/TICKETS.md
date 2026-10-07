@@ -105,7 +105,7 @@ WhatsApp Web-style chat layout; start a chat by the recipient's phone number; se
 
 ## TKT-5 — Need a linkable WhatsApp account for real checks
 
-- **type:** bug · **state:** Backlog · **created:** 2026-10-06 · **related:** TKT-4
+- **type:** bug · **state:** Done · **created:** 2026-10-06 · **related:** TKT-4
 
 **Description**
 
