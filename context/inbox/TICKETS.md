@@ -124,7 +124,7 @@ Impact: §2.5 of spec 003, the Receiving Replies real checks, and the demo all n
 
 ## TKT-6 — Receiving replies
 
-- **type:** feature · **state:** In Progress · **created:** 2026-10-06
+- **type:** feature · **state:** Done · **created:** 2026-10-06
 - **roadmap:** Phase 1 → "Receiving Replies"
 
 **Description**
@@ -141,6 +141,7 @@ Incoming text messages appear in the right chat within 10 seconds; a text from a
   - Slice 2: Replies in the UI
   - Slice 3: Feature Testing & Regression
   - Slice 4: Ship (real reply check waits on TKT-5)
+- 2026-10-07 — Stage 6 `/awos:verify 004`: 18/18 criteria verified (live `537be13`, a real FIFO queue stub; screenshots `docs/screenshots/004-*.png`, look confirmed by the user; real reply confirmed by the user) → spec + tech Completed, roadmap ticked → **Done**.
 
 ---
 
