@@ -23,10 +23,10 @@ _The highest priority features that form the core foundation of the product: the
   - [x] **Send Text Messages with Status:** Send text from the composer (Enter sends). Each message shows sending → sent, or failed with its text kept and a manual retry, so the user always knows whether a message went out and never sends one twice by accident.
   - [x] **Chats Saved Across Reloads:** The chat list and its messages survive a page reload, so a reviewer doesn't lose the conversation while testing.
 
-- [ ] **Receiving Replies**
-  - [ ] **Incoming Text Messages in the Right Chat:** Replies from the recipient appear in their chat within 10 seconds, without a reload. This is the brief's final success step.
-  - [ ] **New Chat for Unknown Senders:** A text from a number with no chat yet creates one at the top of the list, so no reply is ever dropped.
-  - [ ] **Reliable Queue Handling:** Non-text and group events are skipped without blocking later messages. Every reply appears exactly once and in the order it was sent.
+- [x] **Receiving Replies**
+  - [x] **Incoming Text Messages in the Right Chat:** Replies from the recipient appear in their chat within 10 seconds, without a reload. This is the brief's final success step.
+  - [x] **New Chat for Unknown Senders:** A text from a number with no chat yet creates one at the top of the list, so no reply is ever dropped.
+  - [x] **Reliable Queue Handling:** Non-text and group events are skipped without blocking later messages. Every reply appears exactly once and in the order it was sent.
 
 ---
 
