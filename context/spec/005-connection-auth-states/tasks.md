@@ -1,6 +1,7 @@
 # Tasks — spec 005 Connection & Authorization States (TKT-8)
 
 - Functional: [functional-spec.md](functional-spec.md) · Technical: [technical-considerations.md](technical-considerations.md) · Reviews: [reviews/TRIAGE.md](reviews/TRIAGE.md)
+- **Order changed by the user (2026-10-07): "let's ship, and after that test"**: Slice 4 (Ship) runs before Slice 3 (Feature Testing), whose tests then go in a follow-up PR.
 - Branch: `feat/TKT-8-connection-auth-states`. Lanes: `react-frontend` (gate `npm run check`), `testing-expert` (test files only). One PR at the end.
 
 ## Standing rules
