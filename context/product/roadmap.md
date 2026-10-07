@@ -17,11 +17,11 @@ _The highest priority features that form the core foundation of the product: the
   - [x] **Credentials Login with Readiness Check:** Let the user enter `idInstance` and `apiTokenInstance` (the API URL is filled in from `idInstance`, with a checkbox to override it) and only let them in once the instance exists, is authorized in WhatsApp, and is ready to receive replies (incoming notifications on, no webhook set). Otherwise, say which check failed and what to change in the GREEN-API console, so a reviewer never ends up in a chat that can't receive.
   - [x] **Remembered Session & Logout:** Keep the user signed in across reloads (re-checking the saved credentials each time) and let them log out, which clears credentials and chats from the browser.
 
-- [ ] **Chats & Sending**
-  - [ ] **WhatsApp Web-Style Chat Layout:** A sidebar chat list, a conversation pane with a header, incoming and outgoing bubbles with timestamps, a composer, and empty states, so the app feels familiar straight away.
-  - [ ] **New Chat by Phone Number:** Start a conversation by entering the recipient's international number. Different spellings of the same number open the same chat, and invalid numbers are rejected with a clear message.
-  - [ ] **Send Text Messages with Status:** Send text from the composer (Enter sends). Each message shows sending → sent, or failed with its text kept and a manual retry, so the user always knows whether a message went out and never sends one twice by accident.
-  - [ ] **Chats Saved Across Reloads:** The chat list and its messages survive a page reload, so a reviewer doesn't lose the conversation while testing.
+- [x] **Chats & Sending**
+  - [x] **WhatsApp Web-Style Chat Layout:** A sidebar chat list, a conversation pane with a header, incoming and outgoing bubbles with timestamps, a composer, and empty states, so the app feels familiar straight away.
+  - [x] **New Chat by Phone Number:** Start a conversation by entering the recipient's international number. Different spellings of the same number open the same chat, and invalid numbers are rejected with a clear message.
+  - [x] **Send Text Messages with Status:** Send text from the composer (Enter sends). Each message shows sending → sent, or failed with its text kept and a manual retry, so the user always knows whether a message went out and never sends one twice by accident.
+  - [x] **Chats Saved Across Reloads:** The chat list and its messages survive a page reload, so a reviewer doesn't lose the conversation while testing.
 
 - [ ] **Receiving Replies**
   - [ ] **Incoming Text Messages in the Right Chat:** Replies from the recipient appear in their chat within 10 seconds, without a reload. This is the brief's final success step.
