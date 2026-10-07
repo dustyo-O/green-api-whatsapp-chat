@@ -15,6 +15,8 @@ const RECEIVE_TIMEOUT_S = 5;
 const RECEIVE_BUDGET_MS = 8_000;
 /** As the receive's, so an outage that starts during a delete shows within 20 s (code review F2). */
 const DELETE_BUDGET_MS = 8_000;
+/** The tie-break after a 401/403: 8 + 5 s backoff + 5 s poll keeps recovery within 20 s (tech Round 3). */
+const TIE_BREAK_BUDGET_MS = 8_000;
 /** Then 5 s for ever. */
 const BACKOFF_MS = [1_000, 2_000, 4_000, 5_000];
 /** Failures other than network or key for this long → the grey banner (functional §2.5). */
@@ -127,7 +129,7 @@ export async function runReceiveLoop(
       // (tech §3 risk 1).
       let patch;
       try {
-        patch = await askState(credentials, wake.signal);
+        patch = await askState(credentials, wake.signal, TIE_BREAK_BUDGET_MS);
       } catch (checkError) {
         // Woken or stopped: not a failure.
         if (wake.signal.aborted) return;

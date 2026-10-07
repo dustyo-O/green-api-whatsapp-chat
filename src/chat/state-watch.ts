@@ -21,9 +21,10 @@ const RETRY_EVERY_MS = 30_000;
 export async function askState(
   credentials: Credentials,
   cancel: AbortSignal,
+  budgetMs = CHECK_BUDGET_MS,
 ): Promise<Partial<StatusState>> {
   try {
-    const { stateInstance } = await within(CHECK_BUDGET_MS, cancel, (s) =>
+    const { stateInstance } = await within(budgetMs, cancel, (s) =>
       getStateInstance(credentials, s),
     );
     return {
