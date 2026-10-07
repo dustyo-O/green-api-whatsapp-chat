@@ -15,13 +15,13 @@ const WATCH_EVERY_MS = 4 * 60_000;
 const RETRY_EVERY_MS = 30_000;
 
 /**
- * One `getStateInstance` as a status patch (tech §2.2, watch column), or `null` when it failed
- * (timeout, 429, 5xx, network): the caller keeps the current conditions.
+ * One `getStateInstance` as a status patch (tech §2.2, watch column); a 401/403 is the key.
+ * Throws on any other failure (timeout, 429, 5xx, network, an abort of `cancel`).
  */
-export async function checkState(
+export async function askState(
   credentials: Credentials,
   cancel: AbortSignal,
-): Promise<Partial<StatusState> | null> {
+): Promise<Partial<StatusState>> {
   try {
     const { stateInstance } = await within(CHECK_BUDGET_MS, cancel, (s) =>
       getStateInstance(credentials, s),
@@ -40,6 +40,18 @@ export async function checkState(
     ) {
       return { keyInvalid: true };
     }
+    throw error;
+  }
+}
+
+/** As `askState`, but `null` when it failed: the caller keeps the current conditions. */
+export async function checkState(
+  credentials: Credentials,
+  cancel: AbortSignal,
+): Promise<Partial<StatusState> | null> {
+  try {
+    return await askState(credentials, cancel);
+  } catch {
     return null;
   }
 }

@@ -6,6 +6,7 @@ import {
   API_URL,
   deleted,
   failure,
+  hang,
   queue,
   received,
   requests,
@@ -544,37 +545,88 @@ describe("runReceiveLoop → status", () => {
     expect(status().keyInvalid).toBe(true);
   });
 
-  // @regression — tech §2.2 row 3: one network failure is not yet «Нет соединения»
-  it("shows no connection after two network failures in a row, not one", async () => {
+  // @regression — tech Round 2: a network failure is «Нет соединения» only after 15 s without an
+  // answer, and a 500 is an answer
+  it("shows no connection once nothing has answered for 15 s and the latest failure is a network one", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-    queue(HttpResponse.error(), failure(500), HttpResponse.error());
+    queue(
+      HttpResponse.error(),
+      failure(500),
+      HttpResponse.error(),
+      HttpResponse.error(),
+      HttpResponse.error(),
+    );
 
     start();
     await flush();
     expect(status().noConnection).toBe(false);
-    await advance(1_000); // the 500 breaks the streak
-    await advance(2_000);
-    expect(received).toHaveLength(3);
+    await advance(1_000); // the 500 at 1 s restarts the 15 s
+    await advance(14_999);
+    expect(received).toHaveLength(5);
     expect(status().noConnection).toBe(false);
 
-    queue(HttpResponse.error());
-    await advance(4_000);
+    await advance(1);
     expect(status().noConnection).toBe(true);
   });
 
   // @regression — tech §2.2 row 3, functional §2.2 c2: a stalled upstream → banner within 20 s
-  it("counts a stalled poll's budget as a network failure: no connection after about 17 s", async () => {
+  it("counts a stalled poll's budget as a network failure: no connection after 15 s", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     stallReceive();
 
     start();
-    await advance(16_000);
+    await advance(14_999);
     expect(status().noConnection).toBe(false);
-    await advance(1_000);
+    await advance(1);
 
     expect(status().noConnection).toBe(true);
     await advance(70_000);
     expect(status().stuck).toBe(false); // network failures never start the stuck clock
+  });
+
+  // @regression — tech Round 2 (pr #16): counting failures took 26 s once the backoff was at 5 s
+  it("shows no connection within 20 s when an outage starts during the capped backoff", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    let answers = 5; // 503 at 0, 1, 3, 7 and 12 s; the next backoff is 5 s
+    server.use(
+      http.get("*/receiveNotification/*", async () => {
+        if (answers-- > 0) return failure(503);
+        await delay("infinite");
+        return new HttpResponse(null);
+      }),
+    );
+
+    start();
+    await advance(12_000);
+    expect(received).toHaveLength(5);
+    expect(status().noConnection).toBe(false);
+    await advance(20_000);
+
+    expect(status().noConnection).toBe(true);
+  });
+
+  // @regression — tech Round 2 (pr #16): a stalled tie-break check held the loop for its 15 s budget
+  it("shows no connection within 20 s when an outage starts during the check after a 401", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    let refused = false;
+    server.use(
+      http.get("*/receiveNotification/*", async () => {
+        if (!refused) {
+          refused = true;
+          return failure(401);
+        }
+        await delay("infinite");
+        return new HttpResponse(null);
+      }),
+      hang("getStateInstance"),
+    );
+
+    start();
+    await flush();
+    expect(requests).toEqual(["getStateInstance"]);
+    await advance(20_000);
+
+    expect(status().noConnection).toBe(true);
   });
 
   // @regression — tech §2.2 row 4, risk 5: an `online` wake must not flash «Нет соединения»
@@ -704,6 +756,29 @@ describe("runReceiveLoop → status", () => {
     expect(status()).toMatchObject({
       keyInvalid: false,
       instanceState: "authorized",
+      stuck: true,
+    });
+  });
+
+  // @regression — tech Round 2 (pr #16): receive refused and the check fails → stuck, not silence
+  it("shows stuck when receive keeps answering 401 and the check after it keeps failing", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    server.use(
+      http.get("*/receiveNotification/*", () => failure(401)),
+      answer("getStateInstance", 500),
+    );
+
+    start();
+    await flush();
+    expect(requests).toEqual(["getStateInstance"]);
+    await advance(59_000);
+    expect(status().stuck).toBe(false);
+    await advance(1_000);
+
+    expect(status()).toMatchObject({
+      keyInvalid: false,
+      instanceState: "authorized",
+      noConnection: false,
       stuck: true,
     });
   });
