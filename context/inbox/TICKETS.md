@@ -173,3 +173,4 @@ Connection-lost banner with auto-recovery (chats and the unsent draft kept, send
 
 - 2026-10-07 — `/harness:feature` started; stage 0 (grill) running. Carried in: the instance was logged out by WhatsApp while signed in and sends still showed ✅ (queued by GREEN-API for 24 h), spec 003 slice 5; `stateInstanceChanged` arrives in the receive queue (spec 004 slice 1 probe); a receive answer without `receiptId` can block receiving (spec 004 review 3 F4); a rotated token makes every call 401.
 - 2026-10-07 — grill done → `context/inbox/connection-auth-states.md` (all recommended). D1 offline banner (browser offline or 2 network failures) · D2 sending paused, draft kept · D3 logged-out red banner from the queue notification (+5 min fallback if needed) · D4 token-invalid banner with «Выйти» · D5 grey "receiving stuck" after 1 min · D6 one banner by priority.
+- 2026-10-07 — Spec: `context/spec/005-connection-auth-states/functional-spec.md` → In Progress.
