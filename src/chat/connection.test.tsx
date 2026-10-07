@@ -32,6 +32,8 @@ const OFFLINE = "Нет соединения. Переподключаемся�
 const NOT_AUTHORIZED =
   "Инстанс не авторизован. Отсканируйте QR-код в консоли GREEN-API.";
 const BLOCKED = "Инстанс заблокирован. Проверьте его в консоли GREEN-API.";
+const RESTRICTED =
+  "Работа инстанса временно ограничена. Проверьте его в консоли GREEN-API.";
 const KEY = "Ключ доступа больше не действует. Войдите заново.";
 const STUCK = "Не удаётся получить новые сообщения. Пробуем снова…";
 const INTRO = "Выберите чат, чтобы начать переписку";
@@ -328,8 +330,33 @@ describe("§2.3 instance not authorized", () => {
     expect(posted).toEqual([]);
   });
 
-  // @regression — functional §2.3 c4, tech §2.1: no notification at all, only the 4-minute watch
-  it("shows the red banner within 5 minutes of a logout when nothing else happens", async () => {
+  // @regression — functional §2.3: every non-authorized state reads its sign-in text
+  it.each([
+    [
+      "sleepMode",
+      "Телефон с WhatsApp не в сети. Включите его и проверьте снова.",
+    ],
+    ["starting", "Инстанс запускается. Попробуйте через минуту."],
+    ["yellowCard", RESTRICTED],
+    ["suspended", RESTRICTED],
+  ])(
+    "reads the sign-in text for %s, in red, and pauses sending",
+    async (state, text) => {
+      const user = userEvent.setup();
+      await openChat(user);
+
+      queue(notification(stateChanged(state)));
+
+      await vi.waitFor(() => {
+        expect(bannerText()).toBe(text);
+      });
+      expect(bannerIs("danger")).toBe(true);
+      expect(composer().placeholder).toBe(AUTH_PLACEHOLDER);
+    },
+  );
+
+  // @regression — functional §2.3 c4 and recovery, tech §2.1: no notification at all, only the 4-minute watch
+  it("shows the red banner within 5 minutes of a logout when nothing else happens, and hides it within 5 minutes of a new login", async () => {
     fakeTimers();
     // A healthy long poll that comes back empty every 5 s.
     server.use(
@@ -353,6 +380,13 @@ describe("§2.3 instance not authorized", () => {
 
     expect(bannerText()).toBe(NOT_AUTHORIZED);
     expect(bannerIs("danger")).toBe(true);
+
+    server.use(stateIs("authorized")); // the QR code is scanned again
+    for (let s = 0; s < 5 * 60; s++) {
+      await act(() => vi.advanceTimersByTimeAsync(1_000));
+    }
+
+    expect(banner()).toBeNull();
   });
 });
 
@@ -360,6 +394,7 @@ describe("§2.4 access key no longer works", () => {
   // @regression — functional §2.4 c1
   it("shows the key banner with «Выйти», which leads to the empty sign-in form", async () => {
     const user = userEvent.setup();
+    server.use(sentAs("BAE5"));
     await openChat(user);
 
     server.use(status("getStateInstance", 401)); // the check after a 401 confirms the key
@@ -370,6 +405,10 @@ describe("§2.4 access key no longer works", () => {
     expect(bannerIs("danger")).toBe(true);
     expect(screen.getByText(`Инстанс ${ID}`)).toBeDefined(); // not signed out by itself
     expect(composer().placeholder).toBe(KEY_PLACEHOLDER);
+    await user.type(composer(), "Привет{Enter}"); // functional §2.6: the key banner pauses sending
+    expect(bubbleTexts()).toEqual(["Привет"]);
+    expect(composer().value).toBe("Привет");
+    expect(posted).toEqual([]);
 
     await user.click(within(shown).getByRole("button", { name: "Выйти" }));
 
@@ -499,6 +538,36 @@ describe("§2.6 sending paused", () => {
     expect(composer().value).toBe("Ещё раз");
     expect(composer().placeholder).toBe(AUTH_PLACEHOLDER);
     expect(posted).toEqual([]);
+  });
+
+  // @regression — functional §2.6: a message already on its way finishes with GREEN-API's answer
+  it("marks a message sent before the banner appeared with ✅ once GREEN-API accepts it", async () => {
+    const user = userEvent.setup();
+    let release = () => {};
+    const answered = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    server.use(
+      answer("sendMessage", async () => {
+        await answered;
+        return HttpResponse.json({ idMessage: "BAE5" });
+      }),
+    );
+    await openChat(user);
+    await user.type(composer(), "В пути{Enter}");
+    await vi.waitFor(() => {
+      expect(posted).toHaveLength(1);
+    });
+
+    goOffline();
+    expect(bannerText()).toBe(OFFLINE);
+    release();
+
+    await vi.waitFor(() => {
+      expect(lastBubble()).toContain("✅");
+    });
+    expect(bubbleTexts()).toEqual(["Привет", "В пути"]);
+    expect(posted).toHaveLength(1);
   });
 
   // @regression — functional §2.6 c4
