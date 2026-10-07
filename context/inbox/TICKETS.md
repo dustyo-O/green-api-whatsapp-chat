@@ -167,7 +167,7 @@ Not a spec failure (functional §2.2 orders by latest message time; equal times 
 
 ## TKT-8 — Connection & authorization states
 
-- **type:** feature · **state:** In Progress · **created:** 2026-10-07
+- **type:** feature · **state:** Done · **created:** 2026-10-07
 - **roadmap:** Phase 2 → "Connection & Authorization States"
 
 **Description**
@@ -185,6 +185,7 @@ Connection-lost banner with auto-recovery (chats and the unsent draft kept, send
   - Slice 3: Feature Testing & Regression
   - Slice 4: Ship
 - 2026-10-07 — Shipped first (user: "let's ship, and after that test"): PR https://github.com/dustyo-O/green-api-whatsapp-chat/pull/16 — slices 1–2 + three Codex code-review fix slices (F1–F3), 485 tests. Next: Slice 3 Feature Testing in a follow-up PR, then `/awos:verify 005`.
+- 2026-10-07 — Slice 3 feature tests (`7f8605b`, 490 tests) in a follow-up PR. The user wrapped up the test task here: `/awos:verify 005` and the optional live key/Wi-Fi check were not run → **Done**.
 
 ---
 
