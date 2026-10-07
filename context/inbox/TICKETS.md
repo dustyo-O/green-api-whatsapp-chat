@@ -105,7 +105,7 @@ WhatsApp Web-style chat layout; start a chat by the recipient's phone number; se
 
 ## TKT-5 — Need a linkable WhatsApp account for real checks
 
-- **type:** bug · **state:** Backlog · **created:** 2026-10-06 · **related:** TKT-4
+- **type:** bug · **state:** In Progress · **created:** 2026-10-06 · **related:** TKT-4
 
 **Description**
 
@@ -179,3 +179,4 @@ Connection-lost banner with auto-recovery (chats and the unsent draft kept, send
   - Slice 2: State watch and sending paused
   - Slice 3: Feature Testing & Regression
   - Slice 4: Ship
+- 2026-10-07 — user: "meantime instance is online. messages delivering to real wa account". Unblocks the parked real checks (spec 003 §2.5, spec 004 §2.5). → In Progress.
