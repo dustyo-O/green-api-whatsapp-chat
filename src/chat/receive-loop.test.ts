@@ -641,6 +641,73 @@ describe("runReceiveLoop → status", () => {
     expect(texts()).toEqual(["Привет-привет"]);
   });
 
+  // @regression — code review F1 (pr #16): receives get through, deletes don't → stuck, not offline
+  it("shows stuck, not no connection, when every receive works but its delete fails on the network", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    server.use(
+      http.delete("*/deleteNotification/*/*", () => HttpResponse.error()),
+    );
+    queue({ receiptId: 1, body: textMessage });
+
+    start();
+    await flush();
+    expect(deleted).toEqual([1]);
+    await advance(59_000);
+    expect(status().stuck).toBe(false);
+    await advance(1_000);
+
+    expect(deleted.length).toBeGreaterThan(2);
+    expect(status()).toMatchObject({ noConnection: false, stuck: true });
+  });
+
+  // @regression — code review F2 (pr #16): a stalled delete, then a stalled receive → within 20 s
+  it("shows no connection within 20 s when an outage starts during a delete", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    let outage = false;
+    server.use(
+      http.get("*/receiveNotification/*", async () => {
+        if (!outage) return; // falls through to the queue
+        await delay("infinite");
+        return new HttpResponse(null);
+      }),
+      http.delete("*/deleteNotification/*/*", async () => {
+        outage = true;
+        await delay("infinite");
+        return new HttpResponse(null);
+      }),
+    );
+    queue({ receiptId: 1, body: textMessage });
+
+    start();
+    await flush();
+    expect(deleted).toEqual([1]);
+    await advance(20_000);
+
+    expect(status().noConnection).toBe(true);
+  });
+
+  // @regression — code review F3 (pr #16): receive refused, key and instance fine → stuck
+  it("shows stuck, not the key, when receive keeps answering 401 but the instance is authorized", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    server.use(
+      http.get("*/receiveNotification/*", () => failure(401)),
+      stateIs("authorized"),
+    );
+
+    start();
+    await flush();
+    expect(requests).toEqual(["getStateInstance"]);
+    await advance(59_000);
+    expect(status().stuck).toBe(false);
+    await advance(1_000);
+
+    expect(status()).toMatchObject({
+      keyInvalid: false,
+      instanceState: "authorized",
+      stuck: true,
+    });
+  });
+
   // @regression — tech §2.2 row 5: a save that throws feeds the stuck clock too
   it("starts the stuck clock when saving a reply throws", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
