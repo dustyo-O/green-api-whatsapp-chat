@@ -629,6 +629,36 @@ describe("runReceiveLoop → status", () => {
     expect(status().noConnection).toBe(true);
   });
 
+  // @regression — tech Round 3 (pr #16): a stalled tie-break held the loop for 15 s, so recovery
+  // with no `online` event took about 25 s
+  it("recovers within 20 s when GREEN-API comes back during a stalled check after a 401", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    let n = 0;
+    server.use(
+      http.get("*/receiveNotification/*", async () => {
+        n++;
+        if (n <= 4) return HttpResponse.error(); // at 0, 1, 3 and 7 s; the backoff is now 5 s
+        if (n === 5) return failure(401); // at 12 s; its check stalls
+        await delay(5_000); // back: a long poll that takes its full 5 s
+        // falls through to the queue
+      }),
+      hang("getStateInstance"),
+    );
+    queue({ receiptId: 1, body: textMessage });
+
+    start();
+    await flush();
+    for (const ms of [1_000, 2_000, 4_000, 5_000]) await advance(ms);
+    expect(received).toHaveLength(5);
+    expect(requests).toEqual(["getStateInstance"]);
+    // GREEN-API is back now; small steps let each request go out on time.
+    for (let t = 0; t < 20_000; t += 500) await advance(500);
+
+    expect(status().noConnection).toBe(false);
+    expect(texts()).toEqual(["Привет-привет"]);
+    expect(deleted).toEqual([1]);
+  });
+
   // @regression — tech §2.2 row 4, risk 5: an `online` wake must not flash «Нет соединения»
   it("polls again at once, without counting a failure, when woken by online", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
