@@ -28,3 +28,13 @@
 | F1 | major | accepted | Functional §2.5: taken in but never cleared = stuck. With receives succeeding, GREEN-API is reachable, so a network-failed delete starts the **stuck** clock (not "no connection"); test with repeated receives + network-failed deletes. | tasks.md Slice F1 |
 | F2 | major | accepted | Functional §2.2's 20 s: the delete budget 15 s → 8 s (same as receive) → worst case 8 + 1 + 8 = 17 s; outage-during-delete test. | tasks.md Slice F1; tech §2.2 |
 | F3 | major | accepted | Functional §2.5: when the tie-break confirms an authorized instance but receiving keeps being refused, count it toward the stuck clock; test. | tasks.md Slice F1 |
+
+## Code review 2026-10-07 — code-codex-20261007-1830.md (codex · effort low · PR #16 after Slice F1) — verdict: DO NOT SHIP
+
+Review 1's F1–F3 are fixed (`cc75da6`); no findings on them.
+
+| # | severity | verdict | rationale | applied in |
+|---|---|---|---|---|
+| F1 | major | accepted (sturdier rule) | Counting failures can't bound detection once backoff is capped (8 + 5 + 8 = 21 s). New rule: `noConnection` when the latest failure is a network one **and** no reachable answer for **15 s** (wall clock), independent of backoff and tie-break; tests during capped backoff and during a tie-break check. | tasks.md Slice F2; tech amendments |
+| F2 | major | accepted (real bug) | Any HTTP answer proves GREEN-API is reachable and must clear `noConnection`, or sending stays wrongly paused (§2.2, §2.6); test outage → repeated 503 → offline gone, grey after 60 s, sending allowed. | tasks.md Slice F2 |
+| F3 | major | accepted | A receive 401/403 whose tie-break check fails counts toward the stuck clock (§2.5); test > 1 min of 401 → failed check → grey. | tasks.md Slice F2 |
