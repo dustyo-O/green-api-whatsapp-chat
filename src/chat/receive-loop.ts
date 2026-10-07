@@ -6,7 +6,7 @@ import {
 } from "../api/green-api";
 import { useChats } from "./chats-store";
 import { toIncoming, toStateChange } from "./notification";
-import { checkState } from "./state-watch";
+import { askState } from "./state-watch";
 import { useStatus, type StatusState } from "./status-store";
 import { sleep, within } from "./wait";
 
@@ -19,10 +19,13 @@ const DELETE_BUDGET_MS = 8_000;
 const BACKOFF_MS = [1_000, 2_000, 4_000, 5_000];
 /** Failures other than network or key for this long → the grey banner (functional §2.5). */
 const STUCK_AFTER_MS = 60_000;
-/** Network failures in a row → «Нет соединения» (tech §2.2). */
-const OFFLINE_AFTER = 2;
+/**
+ * No answer from GREEN-API for this long while the latest failure is a network one → «Нет
+ * соединения», whatever the backoff or a tie-break check is doing: within 20 s (tech Round 2).
+ */
+const OFFLINE_AFTER_MS = 15_000;
 
-/** Which condition a failed receive or delete feeds (tech §2.2); a wake is handled before. */
+/** Which condition a failed call feeds (tech §2.2); a wake is handled before. */
 function classify(error: unknown): "network" | "key" | "stuck" {
   if (error instanceof GreenApiError) {
     // `timeout` here is the time budget: a wake or an abort was ruled out by the caller.
@@ -66,12 +69,34 @@ export async function runReceiveLoop(
   const backOff = () =>
     sleep(BACKOFF_MS[Math.min(failures++, BACKOFF_MS.length - 1)], wake.signal);
 
-  let networkFailures = 0;
-  let stuckTimer: ReturnType<typeof setTimeout> | undefined;
-  const reachable = () => {
-    networkFailures = 0;
-    write({ noConnection: false, keyInvalid: false });
+  // The latest failure is a network one, and no HTTP answer has come for OFFLINE_AFTER_MS.
+  let networkDown = false;
+  let silent = false;
+  let silenceTimer: ReturnType<typeof setTimeout> | undefined;
+  const listen = () => {
+    clearTimeout(silenceTimer);
+    silent = false;
+    silenceTimer = setTimeout(() => {
+      silent = true;
+      if (networkDown) write({ noConnection: true });
+    }, OFFLINE_AFTER_MS);
   };
+  listen();
+  const networkFailed = () => {
+    networkDown = true;
+    if (silent) write({ noConnection: true });
+  };
+  // Any HTTP answer, 429 and 5xx too: GREEN-API can be reached (tech Round 2).
+  const answered = () => {
+    networkDown = false;
+    listen();
+    write({ noConnection: false });
+  };
+  const reachable = () => {
+    answered();
+    write({ keyInvalid: false });
+  };
+  let stuckTimer: ReturnType<typeof setTimeout> | undefined;
   // Only an empty poll or a successful delete: a reply taken in but never cleared is not "works".
   const works = () => {
     reachable();
@@ -85,21 +110,38 @@ export async function runReceiveLoop(
       write({ stuck: true });
     }, STUCK_AFTER_MS);
   };
+  const isAnswer = (error: unknown) =>
+    error instanceof GreenApiError &&
+    (error.kind === "http" || error.kind === "badBody");
   const fail = async (error: unknown) => {
     const kind = classify(error);
     if (kind === "network") {
-      if (++networkFailures >= OFFLINE_AFTER) write({ noConnection: true });
+      networkFailed();
       return;
     }
-    networkFailures = 0;
+    networkDown = false;
+    if (isAnswer(error)) answered();
     if (kind === "key") {
       if (stopped()) return;
       // A logged-out instance may refuse the same way: only its state tells the two apart
-      // (tech §3 risk 1). A failed check keeps everything; the next cycle asks again.
-      const patch = await checkState(credentials, wake.signal);
-      if (patch !== null) write(patch);
+      // (tech §3 risk 1).
+      let patch;
+      try {
+        patch = await askState(credentials, wake.signal);
+      } catch (checkError) {
+        // Woken or stopped: not a failure.
+        if (wake.signal.aborted) return;
+        // The conditions stay and the next cycle asks again, but receiving is refused all the
+        // same (tech Round 2).
+        if (classify(checkError) === "network") networkFailed();
+        else answered();
+        startStuck();
+        return;
+      }
+      answered();
+      write(patch);
       // The key works and the instance is authorized, yet receiving is refused (code review F3).
-      if (patch?.instanceState === "authorized") startStuck();
+      if (patch.instanceState === "authorized") startStuck();
       return;
     }
     startStuck();
@@ -153,9 +195,8 @@ export async function runReceiveLoop(
         // so a delete that keeps failing never loops hot.
         if (wake.signal.aborted) continue;
         // The receive just got through, so a network failure here is a head taken in but not
-        // cleared (code review F1). It still counts once toward «Нет соединения»: an outage that
-        // starts here shows after the next receive fails too (F2); the next receive that gets
-        // through resets it.
+        // cleared (code review F1). It is still the latest failure: an outage that starts here
+        // shows 15 s after the receive's answer (F2); the next receive that gets through resets it.
         if (classify(error) === "network") startStuck();
         await fail(error);
         await backOff();
@@ -163,6 +204,7 @@ export async function runReceiveLoop(
     }
   } finally {
     clearTimeout(stuckTimer);
+    clearTimeout(silenceTimer);
     window.removeEventListener("online", onWake);
     window.removeEventListener("offline", onOffline);
     signal.removeEventListener("abort", onWake);

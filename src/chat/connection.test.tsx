@@ -189,6 +189,7 @@ afterEach(() => {
 describe("§2.1 one banner at a time", () => {
   // @regression — functional §2.1 c1
   it("shows only the auth banner over no connection, then no connection once authorized", async () => {
+    fakeTimers();
     await openPage();
     queue(notification(stateChanged("notAuthorized")));
     await vi.waitFor(() => {
@@ -201,18 +202,14 @@ describe("§2.1 one banner at a time", () => {
     expect(bannerText()).toBe(NOT_AUTHORIZED);
     expect(screen.queryByText(OFFLINE)).toBeNull();
 
-    // Authorized again, and the connection is still down right after.
+    // Authorized again, and the connection is still down right after: 15 s with no answer.
     queue(
       notification(stateChanged("authorized")),
       HttpResponse.error(),
       HttpResponse.error(),
     );
-    await vi.waitFor(
-      () => {
-        expect(bannerText()).toBe(OFFLINE);
-      },
-      { timeout: 3_000 },
-    );
+    await act(() => vi.advanceTimersByTimeAsync(20_000));
+    expect(bannerText()).toBe(OFFLINE);
     expect(screen.getAllByRole("status")).toHaveLength(1);
   });
 
@@ -588,6 +585,40 @@ describe("§2.6 sending paused", () => {
 
     expect(lastBubble()).toContain("❗");
     expect(posted).toEqual([]);
+  });
+
+  // @regression — tech Round 2 (pr #16): a 503 is an answer, so the offline banner can't stay up
+  it("clears «Нет соединения» once GREEN-API answers 503, shows the grey banner after a minute, and sends", async () => {
+    const user = fakeTimers();
+    server.use(sentAs("BAE5"));
+    const net = { mode: "up" };
+    server.use(
+      http.get("*/receiveNotification/*", () => {
+        if (net.mode === "down") return HttpResponse.error();
+        if (net.mode === "503") return failure(503);
+      }),
+    );
+    await openChat(user);
+    net.mode = "down";
+    queue(); // ends the poll in flight
+    await act(() => vi.advanceTimersByTimeAsync(20_000));
+    expect(bannerText()).toBe(OFFLINE);
+
+    net.mode = "503";
+    await act(() => vi.advanceTimersByTimeAsync(6_000)); // the backoff is at most 5 s
+    expect(banner()).toBeNull();
+    expect(composer().placeholder).toBe(PLACEHOLDER);
+    await act(() => vi.advanceTimersByTimeAsync(60_000));
+    expect(bannerText()).toBe(STUCK);
+
+    await user.type(composer(), "Привет{Enter}");
+
+    await vi.waitFor(() => {
+      expect(lastBubble()).toContain("✅");
+    });
+    expect(posted.map((p) => p.body)).toEqual([
+      { chatId: RU, message: "Привет" },
+    ]);
   });
 
   // @regression — functional §2.6 c6
