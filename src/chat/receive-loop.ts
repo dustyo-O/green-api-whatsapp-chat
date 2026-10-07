@@ -13,7 +13,8 @@ import { sleep, within } from "./wait";
 const RECEIVE_TIMEOUT_S = 5;
 /** The long poll plus 3 s: a poll stalled by an upstream cut recovers within 10 s (review 3 F1). */
 const RECEIVE_BUDGET_MS = 8_000;
-const DELETE_BUDGET_MS = 15_000;
+/** As the receive's, so an outage that starts during a delete shows within 20 s (code review F2). */
+const DELETE_BUDGET_MS = 8_000;
 /** Then 5 s for ever. */
 const BACKOFF_MS = [1_000, 2_000, 4_000, 5_000];
 /** Failures other than network or key for this long → the grey banner (functional §2.5). */
@@ -78,6 +79,12 @@ export async function runReceiveLoop(
     stuckTimer = undefined;
     write({ stuck: false });
   };
+  // Started by the first such failure, never restarted by the next ones.
+  const startStuck = () => {
+    stuckTimer ??= setTimeout(() => {
+      write({ stuck: true });
+    }, STUCK_AFTER_MS);
+  };
   const fail = async (error: unknown) => {
     const kind = classify(error);
     if (kind === "network") {
@@ -91,12 +98,11 @@ export async function runReceiveLoop(
       // (tech §3 risk 1). A failed check keeps everything; the next cycle asks again.
       const patch = await checkState(credentials, wake.signal);
       if (patch !== null) write(patch);
+      // The key works and the instance is authorized, yet receiving is refused (code review F3).
+      if (patch?.instanceState === "authorized") startStuck();
       return;
     }
-    // Started by the first such failure, never restarted by the next ones.
-    stuckTimer ??= setTimeout(() => {
-      write({ stuck: true });
-    }, STUCK_AFTER_MS);
+    startStuck();
   };
 
   try {
@@ -146,6 +152,11 @@ export async function runReceiveLoop(
         // The head stays queued and comes back; dedupe absorbs it. Only a delete resets the backoff,
         // so a delete that keeps failing never loops hot.
         if (wake.signal.aborted) continue;
+        // The receive just got through, so a network failure here is a head taken in but not
+        // cleared (code review F1). It still counts once toward «Нет соединения»: an outage that
+        // starts here shows after the next receive fails too (F2); the next receive that gets
+        // through resets it.
+        if (classify(error) === "network") startStuck();
         await fail(error);
         await backOff();
       }
