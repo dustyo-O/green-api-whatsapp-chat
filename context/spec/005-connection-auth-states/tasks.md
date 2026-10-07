@@ -1,0 +1,36 @@
+# Tasks — spec 005 Connection & Authorization States (TKT-8)
+
+- Functional: [functional-spec.md](functional-spec.md) · Technical: [technical-considerations.md](technical-considerations.md) · Reviews: [reviews/TRIAGE.md](reviews/TRIAGE.md)
+- Branch: `feat/TKT-8-connection-auth-states`. Lanes: `react-frontend` (gate `npm run check`), `testing-expert` (test files only). One PR at the end.
+
+## Standing rules
+
+- Run `npm ci` first in every fresh worktree.
+- Never put real GREEN-API credentials or real phone numbers in code, tests, fixtures, logs or commits. Never keep, log or display GREEN-API error bodies (testing against a pattern and dropping them is allowed).
+- No new dependencies. Tests: Vitest + RTL + MSW only, no Playwright tests in the repo.
+- MSW `server.listen()` per test file; page helpers **unmount the previous root on reload** (spec 004 ledger).
+- The Russian texts exactly as in the functional spec; the per-state auth texts come from spec 002's `messages.ts`, not new copies.
+- Conventional Commits. Keep it minimal (user rule).
+
+---
+
+- [ ] **Slice 1: Status store, response mapping and the banner**
+  - [ ] Add `src/chat/status-store.ts` (non-persisted; `bannerOf`, `pausedBy`, `reset`; tech §2.3), `toStateChange` in `src/chat/notification.ts`, and the classification in `src/chat/receive-loop.ts` per tech §2.2: reachable / works; `keyInvalid` on 401 and 403; two network failures → `noConnection`, plus the device `offline`/`online` events and `navigator.onLine`; the cancellable 60 s stuck timer; a **wake-abort is not a failure**; no writes after the session ends. Add `src/chat/Banner.tsx` + css (red / yellow / grey, «Выйти» on the key banner) and place it at the top of the right-hand area in `MainScreen.tsx` (flex column). Export `stateError` for the auth texts, and add the new tokens in `src/index.css`. Unit tests (`status-store`, `toStateChange`, one loop case per row of tech §2.2) and RTL + MSW tests for functional §2.1, §2.2, §2.3 c1–c3, §2.4 and §2.5, with RED proof. **[Agent: react-frontend]**
+  - [ ] Verify: `npm run check` green, all existing suites unchanged. **[Agent: react-frontend]**
+  - [ ] Merge, run the gate (**chained with `&&`; if it fails, check the machine load and use GitHub CI on the pushed commit**), then give the user a token-safe probe script: `receiveNotification?receiveTimeout=5` and `getStateInstance` with the real token on the still-logged-out instance, **and** the same two calls with a deliberately wrong token. Only status lines and short body shapes are pasted back. **[Lead]**
+  - [ ] Run the probe and paste back the four status lines and short body shapes (never an error body's `path`, which contains the token). **[User]**
+  - [ ] If the logged-out and wrong-token answers overlap, add the disambiguation rule from tech §3 risk 1 via the lane (a fix slice). Record the probe in this ledger. **[Lead]**
+
+- [ ] **Slice 2: State watch and sending paused**
+  - [ ] Add `src/chat/state-watch.ts` (`getStateInstance` every 4 min, retrying every 30 s after a failed check; tech §2.1), started and stopped from the `MainScreen` effect next to the receive loop. Add the pause guard to `useChats.send`/`retry` (before any change); in `NewChatForm`, pause the submit and **re-check after `checkWhatsapp` answers**, keeping the number; disable «Повторить» while paused; set the Composer placeholders by reason (tech §2.4). RTL + MSW tests for functional §2.3 c4 (5 min with nothing else, fake timers) and all of §2.6, incl. a pending `checkWhatsapp` when the pause starts, with RED proof. **[Agent: react-frontend]**
+  - [ ] Verify: `npm run check` green. With `verify-ui` on `npm run dev` (GREEN-API stubbed by `page.route`, fake ids): `context.setOffline(true)` → the yellow banner and the offline placeholder, Enter doesn't send; `setOffline(false)` → the banner gone; a stubbed `notAuthorized` notification → the red banner; a stubbed 401 → the key banner with «Выйти». Light and dark, no overflow at 1280×800. Delete screenshots, stop the server. **[Agent: react-frontend]**
+
+- [ ] **Slice 3: Feature Testing & Regression**
+
+  > Verifies the whole feature end-to-end against functional-spec.md, run after all implementation slices are complete.
+  - [ ] Read functional-spec.md acceptance criteria in full. Generate acceptance-level tests that verify the entire feature as a whole — not individual slices. Cover applicable layers (unit for pure logic, integration for service interactions, e2e for user flows) based on the project's testing stack. Write tests with RED validation (must fail before implementation is confirmed done). Annotate each test with `@spec: 005-connection-auth-states` and `@regression` if suitable for long-term regression. **[Agent: testing-expert]**
+  - [ ] Run all generated tests. All must pass. Fix any failures before proceeding. **[Agent: testing-expert]**
+
+- [ ] **Slice 4: Ship**
+  - [ ] Push and open the PR (`feat: connection and authorization states`, links tasks.md + reviews/, `Refs: TKT-8`). **Confirm `gh pr checks` lists passing `check` + `commitlint` on the head commit before merging.** Run `/harness:review-code 005`, fix through the lane, merge with a merge commit. Comment the PR on TKT-8. **[Lead]**
+  - [ ] Optional, on the live site: sign in, then replace the access key in the GREEN-API console → «Ключ доступа больше не действует…» with «Выйти». Turn the Wi-Fi off and on → the yellow banner appears and goes away. A real logout check waits on TKT-5. **[User]**
