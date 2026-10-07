@@ -145,3 +145,15 @@ export const reactionMessage = webhook({
     typeMessage: "reactionMessage",
   },
 });
+
+/** A `stateInstanceChanged` body, the shape read from the real queue in spec 004 slice 1. */
+export const stateChanged = (stateInstance: string) => ({
+  typeWebhook: "stateInstanceChanged",
+  instanceData: {
+    idInstance: 7103000001,
+    wid: "79000000000@c.us",
+    typeInstance: "whatsapp",
+  },
+  timestamp: TIMESTAMP,
+  stateInstance,
+});

@@ -1,0 +1,37 @@
+.banner {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 16px;
+  overflow-wrap: anywhere;
+}
+
+.danger {
+  background: var(--color-banner-danger);
+  color: var(--color-danger);
+}
+
+.warning {
+  background: var(--color-banner-warning);
+  color: var(--color-text);
+}
+
+.muted {
+  background: var(--color-banner-muted);
+  color: var(--color-text-muted);
+}
+
+.action {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  border: 1px solid currentcolor;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}

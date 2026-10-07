@@ -18,6 +18,9 @@
   --color-badge-text: #ffffff;
   --color-item-selected: #f0f2f5;
   --color-item-hover: #f5f6f6;
+  --color-banner-danger: #fde8ea;
+  --color-banner-warning: #fff3c4;
+  --color-banner-muted: #e9edef;
 
   color-scheme: light dark;
   font-family:
@@ -50,6 +53,9 @@
     --color-badge-text: #111b21;
     --color-item-selected: #2a3942;
     --color-item-hover: #202c33;
+    --color-banner-danger: #3b2027;
+    --color-banner-warning: #3d3520;
+    --color-banner-muted: #2a3942;
   }
 }
 
