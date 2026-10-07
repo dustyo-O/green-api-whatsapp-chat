@@ -13,12 +13,13 @@ import {
   outgoingMessageStatus,
   quotedMessage,
   reactionMessage,
+  stateChanged,
   stickerMessage,
   textBody,
   textMessage,
   webhook,
 } from "./notification.fixtures";
-import { toIncoming } from "./notification";
+import { toIncoming, toStateChange } from "./notification";
 
 const ID = "F7AEC1B7086ECDC7E6E45923F5EDB825";
 const TIME = TIMESTAMP * 1000;
@@ -110,5 +111,35 @@ describe("toIncoming", () => {
     ["a number", 7],
   ])("skips %s without throwing", (_, body) => {
     expect(toIncoming(body)).toBeNull();
+  });
+});
+
+describe("toStateChange", () => {
+  // @regression — spec 005 tech §2.1: the notification that shows the auth banner fast
+  it.each([
+    "notAuthorized",
+    "authorized",
+    "blocked",
+    "sleepMode",
+    "starting",
+    "yellowCard",
+    "suspended",
+  ])("reads %s", (state) => {
+    expect(toStateChange(stateChanged(state))).toBe(state);
+  });
+
+  it.each([
+    ["an unknown state", stateChanged("rebooting")],
+    ["a missing state", { ...stateChanged("x"), stateInstance: undefined }],
+    ["another typeWebhook", { ...stateChanged("blocked"), typeWebhook: "x" }],
+    ["a text message", textMessage],
+    ["null", null],
+    ["a string", "stateInstanceChanged"],
+  ])("ignores %s", (_, body) => {
+    expect(toStateChange(body)).toBeNull();
+  });
+
+  it("is skipped for the chats", () => {
+    expect(toIncoming(stateChanged("notAuthorized"))).toBeNull();
   });
 });
