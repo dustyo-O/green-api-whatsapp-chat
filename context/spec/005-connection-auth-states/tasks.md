@@ -35,3 +35,7 @@
 - [ ] **Slice 4: Ship**
   - [ ] Push and open the PR (`feat: connection and authorization states`, links tasks.md + reviews/, `Refs: TKT-8`). **Confirm `gh pr checks` lists passing `check` + `commitlint` on the head commit before merging.** Run `/harness:review-code 005`, fix through the lane, merge with a merge commit. Comment the PR on TKT-8. **[Lead]**
   - [ ] Optional, on the live site: sign in, then replace the access key in the GREEN-API console → «Ключ доступа больше не действует…» with «Выйти». Turn the Wi-Fi off and on → the yellow banner appears and goes away. A real logout check waits on TKT-5. **[User]**
+
+- [ ] **Slice F1: Code review fixes for PR #16** (review `code-codex-*-1811`)
+  - [ ] Review F1+F2+F3 in `src/chat/receive-loop.ts` (tech "Code review amendments"): (1) a network-failed delete after a successful receive starts the **stuck** timer and doesn't reset or count toward the network streak; (2) the delete budget is **8 s** (was 15 s); (3) a receive 401/403 whose tie-break `getStateInstance` returns `authorized` starts the **stuck** timer. Tests: repeated successful receives with network-failed deletes → the grey banner after 60 s and no offline banner; an outage starting during a delete → «Нет соединения» within 20 s; persistent receive 401 with an authorized state check → the grey banner after 60 s and no key banner. RED proof for each. **[Agent: react-frontend]**
+  - [ ] Verify: `npm run check` green. **[Agent: react-frontend]**

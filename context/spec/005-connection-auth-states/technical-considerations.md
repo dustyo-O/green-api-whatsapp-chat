@@ -130,3 +130,9 @@ Sending is paused by a guard in the store actions `send`/`retry` and in `NewChat
   - slice 1: the logged-out probe (risk 1);
   - §2.3 against a real logout, which needs a linkable instance (TKT-5);
   - optionally, a real token rotation (§2.4) and a real Wi-Fi toggle (§2.2).
+
+## Code review amendments (2026-10-07, PR #16)
+
+- A network-failed **delete** while receives succeed counts toward the **stuck** clock, not `noConnection` (functional §2.5).
+- The delete budget drops from 15 s to **8 s**, so detection stays ≤ 20 s across receive and delete (8 + 1 + 8 = 17 s).
+- A receive 401/403 whose tie-break `getStateInstance` says `authorized` counts toward the **stuck** clock.

@@ -20,3 +20,11 @@
 | F3 | minor | accepted | A cancellable 60 s timer from the first qualifying failure, cancelled only by "works" or the session ending. | tech §2.2 |
 | F4 | major | accepted | Re-check the pause after `checkWhatsapp` answers, before `addChat`/`select`; the number stays. | tech §2.4 |
 | F5 | major | accepted | Probe both logged-out and wrong-key cases; if they overlap, a 4xx on receive triggers one `getStateInstance`: state → auth, 401/403 → key, failure → keep and retry. | tech §3 risk 1 |
+
+## Code review 2026-10-07 — code-codex-20261007-1810.md (codex · effort low · PR #16) — verdict: DO NOT SHIP
+
+| # | severity | verdict | rationale | applied in |
+|---|---|---|---|---|
+| F1 | major | accepted | Functional §2.5: taken in but never cleared = stuck. With receives succeeding, GREEN-API is reachable, so a network-failed delete starts the **stuck** clock (not "no connection"); test with repeated receives + network-failed deletes. | tasks.md Slice F1 |
+| F2 | major | accepted | Functional §2.2's 20 s: the delete budget 15 s → 8 s (same as receive) → worst case 8 + 1 + 8 = 17 s; outage-during-delete test. | tasks.md Slice F1; tech §2.2 |
+| F3 | major | accepted | Functional §2.5: when the tie-break confirms an authorized instance but receiving keeps being refused, count it toward the stuck clock; test. | tasks.md Slice F1 |
