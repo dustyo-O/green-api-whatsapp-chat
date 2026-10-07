@@ -117,6 +117,7 @@ Found while: verifying TKT-4
 Impact: §2.5 of spec 003, the Receiving Replies real checks, and the demo all need a working instance (likely a spare number). App behaviour is per spec; not a code defect.
 
 **Comments**
+- 2026-10-07 — real checks done on live `537be13`: send → ✅ → arrived; reply → left bubble within 10 s; sticker → placeholder. Spec 003 §2.5 and spec 004 §2.5 unparked → **Done**.
 
 ---
 
