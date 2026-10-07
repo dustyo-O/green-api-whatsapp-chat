@@ -105,7 +105,7 @@ WhatsApp Web-style chat layout; start a chat by the recipient's phone number; se
 
 ## TKT-5 — Need a linkable WhatsApp account for real checks
 
-- **type:** bug · **state:** In Progress · **created:** 2026-10-06 · **related:** TKT-4
+- **type:** bug · **state:** Done · **created:** 2026-10-06 · **related:** TKT-4
 
 **Description**
 
@@ -119,6 +119,7 @@ Impact: §2.5 of spec 003, the Receiving Replies real checks, and the demo all n
 **Comments**
 - 2026-10-07 — user: "meantime instance is online. messages delivering to real wa account". Unblocks the parked real checks (spec 003 §2.5, spec 004 §2.5). → In Progress.
 - 2026-10-07 — user: «Тест 2» (✅, queued by GREEN-API while the instance was logged out) **never arrived** after re-authorization; the instance was re-linked with the **same number**. So a ✅ during a logout can be silently lost (24 h queue limit and/or cleared on re-auth): spec 005's send pause while not authorized prevents it; README must say ✅ = accepted by GREEN-API, not delivered.
+- 2026-10-07 — real checks done on live `537be13`: send → ✅ → arrived; reply → left bubble within 10 s; sticker → placeholder. Spec 003 §2.5 and spec 004 §2.5 unparked → **Done**.
 
 ---
 
