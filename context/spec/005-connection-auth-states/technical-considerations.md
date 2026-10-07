@@ -137,3 +137,4 @@ Sending is paused by a guard in the store actions `send`/`retry` and in `NewChat
 - The delete budget drops from 15 s to **8 s**, so detection stays ≤ 20 s across receive and delete (8 + 1 + 8 = 17 s).
 - A receive 401/403 whose tie-break `getStateInstance` says `authorized` counts toward the **stuck** clock.
 - **Round 2 (PR #16):** `noConnection` is set when the latest failure is a network one **and** no reachable answer has come for **15 s** (wall clock), so the 20 s bound holds whatever the backoff or tie-break is doing; **any HTTP answer** (incl. 429/5xx) counts as reachable and clears `noConnection`; a receive 401/403 whose tie-break check fails counts toward the stuck clock.
+- **Round 3 (PR #16):** the receive tie-break `getStateInstance` has its own **8 s** budget (the 4-minute watch keeps 15 s), so recovery stays ≤ 20 s: 8 + 5 + 5 = 18 s.

@@ -38,3 +38,11 @@ Review 1's F1–F3 are fixed (`cc75da6`); no findings on them.
 | F1 | major | accepted (sturdier rule) | Counting failures can't bound detection once backoff is capped (8 + 5 + 8 = 21 s). New rule: `noConnection` when the latest failure is a network one **and** no reachable answer for **15 s** (wall clock), independent of backoff and tie-break; tests during capped backoff and during a tie-break check. | tasks.md Slice F2; tech amendments |
 | F2 | major | accepted (real bug) | Any HTTP answer proves GREEN-API is reachable and must clear `noConnection`, or sending stays wrongly paused (§2.2, §2.6); test outage → repeated 503 → offline gone, grey after 60 s, sending allowed. | tasks.md Slice F2 |
 | F3 | major | accepted | A receive 401/403 whose tie-break check fails counts toward the stuck clock (§2.5); test > 1 min of 401 → failed check → grey. | tasks.md Slice F2 |
+
+## Code review 2026-10-07 — code-codex-20261007-1839.md (codex · effort low · PR #16 after Slice F2) — verdict: SHIP WITH FIXES
+
+Round 2's F1–F3 are fixed (`6b27f46`); no findings on them.
+
+| # | severity | verdict | rationale | applied in |
+|---|---|---|---|---|
+| F1 | major | accepted | Functional §2.2's 20 s recovery: a stalled tie-break (15 s) + capped backoff (5 s) + empty poll (5 s) = 25 s. The tie-break budget drops to **8 s** (the 4-min watch keeps its own) → worst case 18 s; recovery test with capped backoff and no `online` event. | tasks.md Slice F3; tech amendments |
