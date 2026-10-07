@@ -12,6 +12,10 @@
   --color-danger: #ea0038;
   --color-chat-bg: #efeae2;
   --color-bubble-out: #d9fdd3;
+  --color-bubble-in: #ffffff;
+  --color-bubble-unsupported: #e9edef;
+  --color-badge: #25d366;
+  --color-badge-text: #ffffff;
   --color-item-selected: #f0f2f5;
   --color-item-hover: #f5f6f6;
 
@@ -40,6 +44,10 @@
     --color-danger: #f15c6d;
     --color-chat-bg: #0b141a;
     --color-bubble-out: #005c4b;
+    --color-bubble-in: #202c33;
+    --color-bubble-unsupported: #2a3942;
+    --color-badge: #00a884;
+    --color-badge-text: #111b21;
     --color-item-selected: #2a3942;
     --color-item-hover: #202c33;
   }

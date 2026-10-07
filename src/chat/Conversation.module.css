@@ -45,10 +45,24 @@
   box-shadow: 0 1px 0.5px rgb(11 20 26 / 13%);
 }
 
+.in {
+  align-self: flex-start;
+  background: var(--color-bubble-in);
+}
+
 .text {
   margin: 0;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
+}
+
+.unsupported {
+  background: var(--color-bubble-unsupported);
+}
+
+.unsupported .text {
+  color: var(--color-text-muted);
+  font-style: italic;
 }
 
 .meta,

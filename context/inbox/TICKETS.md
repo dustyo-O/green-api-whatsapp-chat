@@ -117,3 +117,43 @@ Found while: verifying TKT-4
 Impact: §2.5 of spec 003, the Receiving Replies real checks, and the demo all need a working instance (likely a spare number). App behaviour is per spec; not a code defect.
 
 **Comments**
+
+---
+
+## TKT-6 — Receiving replies
+
+- **type:** feature · **state:** In Progress · **created:** 2026-10-06
+- **roadmap:** Phase 1 → "Receiving Replies"
+
+**Description**
+
+Incoming text messages appear in the right chat within 10 seconds; a text from an unknown number creates a new chat; non-text and group events are skipped without blocking the queue; every reply appears exactly once, in order.
+
+**Comments**
+
+- 2026-10-06 — `/harness:feature` started; stage 0 (grill) running. Real checks depend on TKT-5 (a linkable WhatsApp account).
+- 2026-10-06 — grill done → `context/inbox/receiving-replies.md` (all recommended). D1 left white bubbles · D2 unread badge · D3 ignore instance-phone messages · D4 placeholder for non-text, groups skipped · D5 match by number, else @lid chat titled by WhatsApp name / «Неизвестный номер» · D6 backlog after sign-in with original times · D7 no sound/notifications.
+- 2026-10-06 — Spec: `context/spec/004-receiving-replies/functional-spec.md` → In Progress.
+- 2026-10-06 — Stage 3 done (tech + 2 codex reviews triaged, tasks reviewed). Plan:
+  - Slice 1: Receive pipeline, no UI (+ optional curl read of the real queue)
+  - Slice 2: Replies in the UI
+  - Slice 3: Feature Testing & Regression
+  - Slice 4: Ship (real reply check waits on TKT-5)
+
+---
+
+## TKT-7 — Same-second replies can order chats wrongly
+
+- **type:** bug · **state:** Backlog · **created:** 2026-10-07 · **related:** TKT-6
+
+**Description**
+
+ticket the same-second chat ordering issue
+
+Context: spec 004 receiving-replies, slice 2 (verify) · branch feat/TKT-6-receiving-replies
+Repro: two replies in different chats with the same GREEN-API `timestamp` (whole seconds) → `sortChats` breaks the tie by chat age, so the chat that got the later reply can end up below the other.
+Found while: verifying TKT-6
+Not a spec failure (functional §2.2 orders by latest message time; equal times are unspecified). Possible fix: break ties by arrival order.
+
+**Comments**
+- 2026-10-07 — PR #12: https://github.com/dustyo-O/green-api-whatsapp-chat/pull/12 → In Review → merged after 4 code-review rounds (6 fixes; the last round resolved by the user as a spec change). Real reply check parked on TKT-5.

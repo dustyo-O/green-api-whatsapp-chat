@@ -43,9 +43,29 @@
 }
 
 .preview {
-  grid-column: 1 / -1;
+  grid-column: 1;
   color: var(--color-text-muted);
   font-size: 0.875rem;
+}
+
+/* Full width unless an unread badge follows it. */
+.preview:last-child {
+  grid-column: 1 / -1;
+}
+
+.badge {
+  grid-column: 2;
+  justify-self: end;
+  align-self: center;
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--color-badge);
+  color: var(--color-badge-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 20px;
+  text-align: center;
 }
 
 .empty {

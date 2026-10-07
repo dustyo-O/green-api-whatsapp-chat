@@ -85,10 +85,10 @@ The user opens the site and sees a login screen. They paste the `idInstance` and
 
 ### 3.2. What's Out-of-Scope (Non-Goals)
 
-- Media, files, voice, stickers, locations, contacts, polls: **text only**.
+- Media, files, voice, stickers, locations, contacts, polls: **text only**. (Incoming non-text messages show a placeholder bubble «Сообщение этого типа пока не поддерживается» so a reply never silently disappears, spec 004.)
 - Group chats, message editing/deleting, reactions, replies/quotes, read receipts / delivered ticks.
 - Webhook-based receiving, or any backend or proxy service of our own.
-- User accounts, multi-instance management, contact names or avatars from WhatsApp.
+- User accounts, multi-instance management, avatars from WhatsApp. (Exception, spec 004: a sender's WhatsApp name titles a chat only when WhatsApp hides the sender's number.)
 - Mobile apps or full mobile-responsive polish beyond "usable".
 - MAX and Telegram versions.
 

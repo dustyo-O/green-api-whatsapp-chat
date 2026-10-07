@@ -1,5 +1,6 @@
 import { useChats, sortChats } from "./chats-store";
-import { formatTitle } from "./phone";
+import { UNSUPPORTED_TEXT } from "./notification";
+import { chatTitle } from "./phone";
 import { formatTime } from "./time";
 import styles from "./ChatList.module.css";
 
@@ -17,6 +18,7 @@ export function ChatList() {
     <ul className={styles.list} aria-label="Чаты">
       {sorted.map((chat) => {
         const last = chat.messages.at(-1);
+        const unread = chat.unread ?? 0;
         return (
           <li key={chat.id}>
             <button
@@ -27,12 +29,22 @@ export function ChatList() {
                 select(chat.id);
               }}
             >
-              <span className={styles.title}>{formatTitle(chat.id)}</span>
+              <span className={styles.title}>{chatTitle(chat)}</span>
               {last && (
                 <>
                   <time className={styles.time}>{formatTime(last.time)}</time>
-                  <span className={styles.preview}>{last.text}</span>
+                  <span className={styles.preview}>
+                    {last.text ?? UNSUPPORTED_TEXT}
+                  </span>
                 </>
+              )}
+              {unread > 0 && (
+                <span
+                  className={styles.badge}
+                  aria-label={`${String(unread)} непрочитанных`}
+                >
+                  {unread}
+                </span>
               )}
             </button>
           </li>

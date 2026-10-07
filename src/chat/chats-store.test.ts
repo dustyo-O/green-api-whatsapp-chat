@@ -12,6 +12,7 @@ import {
   setupGreenApiServer,
 } from "../test/green-api-server";
 import {
+  lastActivity,
   restoreChats,
   sortChats,
   storageKey,
@@ -19,6 +20,7 @@ import {
   type Chat,
   type Message,
 } from "./chats-store";
+import type { Incoming } from "./notification";
 
 setupGreenApiServer();
 
@@ -314,5 +316,245 @@ describe("useChats", () => {
       status: "sent",
       idMessage: "BAE6",
     });
+  });
+});
+
+describe("receive", () => {
+  const LID = "155508384256027@lid";
+  const incoming = (patch: Partial<Incoming> = {}): Incoming => ({
+    chatId: RU,
+    idMessage: "IN1",
+    time: 2_000,
+    text: "Привет-привет",
+    ...patch,
+  });
+  const texts = (chatId: string) =>
+    useChats.getState().chats[chatId].messages.map((m) => m.text);
+
+  it("writes nothing before an instance is open", () => {
+    useChats.getState().receive(incoming());
+
+    expect(useChats.getState().chats).toEqual({});
+    expect(localStorage.length).toBe(0);
+  });
+
+  // @regression — functional §2.2 c2: a reply from a new number opens a chat with a badge
+  it("creates the chat, saves the reply and counts it unread", () => {
+    vi.spyOn(Date, "now").mockReturnValue(5_000);
+    useChats.getState().open(A);
+
+    useChats.getState().receive(incoming());
+
+    expect(useChats.getState().chats[RU]).toEqual({
+      id: RU,
+      createdAt: 5_000,
+      draft: "",
+      unread: 1,
+      messages: [
+        {
+          id: expect.any(String) as string,
+          direction: "in",
+          text: "Привет-привет",
+          time: 2_000,
+          idMessage: "IN1",
+        },
+      ],
+    });
+    expect(saved(A)).toMatchObject({
+      state: {
+        chats: { [RU]: { unread: 1, messages: [{ idMessage: "IN1" }] } },
+      },
+    });
+  });
+
+  // @regression — functional §2.4 c3: the same reply delivered twice shows once
+  it("ignores an idMessage the chat already has", () => {
+    useChats.getState().open(A);
+
+    useChats.getState().receive(incoming());
+    useChats.getState().receive(incoming({ text: "другой" }));
+
+    expect(texts(RU)).toEqual(["Привет-привет"]);
+    expect(useChats.getState().chats[RU].unread).toBe(1);
+  });
+
+  // @regression — functional §2.1 c2, §2.2 c6: ordered by time; ties keep arrival order
+  it("inserts by time, after messages sent at the same time", () => {
+    save(A, {
+      [RU]: chat(RU, {
+        messages: [
+          message({ id: "a", text: "10:00", time: 1_000 }),
+          message({ id: "b", text: "11:00", time: 3_000 }),
+        ],
+      }),
+    });
+    useChats.getState().open(A);
+
+    useChats
+      .getState()
+      .receive(incoming({ idMessage: "1", text: "поздний", time: 500 }));
+    useChats
+      .getState()
+      .receive(incoming({ idMessage: "2", text: "ничья", time: 1_000 }));
+    useChats
+      .getState()
+      .receive(incoming({ idMessage: "3", text: "ничья 2", time: 1_000 }));
+    useChats
+      .getState()
+      .receive(incoming({ idMessage: "4", text: "свежий", time: 4_000 }));
+
+    expect(texts(RU)).toEqual([
+      "поздний",
+      "10:00",
+      "ничья",
+      "ничья 2",
+      "11:00",
+      "свежий",
+    ]);
+  });
+
+  // @regression — functional §2.2 c6: a late reply doesn't move the chat up
+  it("keeps a chat with a late reply below newer activity", () => {
+    save(A, {
+      [RU]: chat(RU, { messages: [message({ time: 2_000 })] }),
+      [RS]: chat(RS, { messages: [message({ time: 3_000 })] }),
+    });
+    useChats.getState().open(A);
+
+    useChats.getState().receive(incoming({ chatId: RU, time: 1_000 }));
+
+    expect(sortChats(useChats.getState().chats).map((c) => c.id)).toEqual([
+      RS,
+      RU,
+    ]);
+    expect(useChats.getState().chats[RU].messages.at(-1)?.time).toBe(2_000);
+  });
+
+  // @regression — review F1 (pr #12): a send after a reply stamped ahead of the local clock
+  it("sends into time order, so the chat's preview and activity never move back", async () => {
+    server.use(sentAs("BAE5"));
+    vi.spyOn(Date, "now").mockReturnValue(5_000);
+    useChats.getState().open(A);
+    useChats.getState().addChat(RU);
+    useChats.getState().receive(incoming({ time: 9_000 }));
+
+    await useChats.getState().send(CREDS, RU, "Привет");
+
+    const sent = useChats.getState().chats[RU];
+    expect(sent.messages.map((m) => m.time)).toEqual([5_000, 9_000]);
+    expect(sent.messages.at(-1)?.text).toBe("Привет-привет");
+    expect(lastActivity(sent)).toBe(9_000);
+  });
+
+  // @regression — functional §2.2 c1: no badge in the open chat; opening clears it
+  it("counts unread only outside the open chat, and select/addChat clear it", () => {
+    useChats.getState().open(A);
+    useChats.getState().addChat(RS);
+
+    useChats.getState().receive(incoming({ chatId: RS, idMessage: "s1" }));
+    useChats.getState().receive(incoming({ idMessage: "r1" }));
+    useChats.getState().receive(incoming({ idMessage: "r2" }));
+    expect(useChats.getState().chats[RS].unread).toBe(0);
+    expect(useChats.getState().chats[RU].unread).toBe(2);
+
+    useChats.getState().select(RU);
+    expect(useChats.getState().chats[RU].unread).toBe(0);
+    expect(saved(A)).toMatchObject({
+      state: { chats: { [RU]: { unread: 0 } } },
+    });
+
+    useChats.getState().receive(incoming({ chatId: RS, idMessage: "s2" }));
+    useChats.getState().addChat(RS);
+    expect(useChats.getState().chats[RS].unread).toBe(0);
+  });
+
+  // @regression — functional §2.2 c3–c5: @lid chats titled by the WhatsApp name, kept apart
+  it("titles @lid chats from a non-empty name and keeps the last one", () => {
+    useChats.getState().open(A);
+
+    useChats.getState().receive(incoming({ chatId: LID, idMessage: "1" }));
+    expect(useChats.getState().chats[LID].title).toBeUndefined();
+    useChats
+      .getState()
+      .receive(incoming({ chatId: LID, idMessage: "2", name: "Иван" }));
+    useChats.getState().receive(incoming({ chatId: LID, idMessage: "3" }));
+    expect(useChats.getState().chats[LID].title).toBe("Иван");
+    useChats
+      .getState()
+      .receive(incoming({ chatId: LID, idMessage: "4", name: "Ваня" }));
+    useChats.getState().receive(incoming({ idMessage: "5", name: "Иван" }));
+
+    expect(useChats.getState().chats[LID].title).toBe("Ваня");
+    expect(useChats.getState().chats[RU].title).toBeUndefined();
+  });
+
+  // @regression — tech §2.5: spec 003 data (no unread) still loads, at version 1
+  it("loads spec 003 chats saved without unread, and keeps version 1", () => {
+    save(A, { [RU]: chat(RU, { messages: [message()] }) });
+
+    useChats.getState().open(A);
+    useChats.getState().receive(incoming());
+
+    expect(useChats.getState().chats[RU].unread).toBe(1);
+    expect(texts(RU)).toEqual(["Привет", "Привет-привет"]);
+    expect(saved(A)).toMatchObject({ version: 1 });
+  });
+
+  it("restores replies, placeholders, unread and titles", () => {
+    const chats = {
+      [RU]: chat(RU, {
+        unread: 2,
+        messages: [
+          message(),
+          {
+            id: "i1",
+            direction: "in",
+            text: "Ок",
+            time: 2_000,
+            idMessage: "IN1",
+          },
+          {
+            id: "i2",
+            direction: "in",
+            text: null,
+            time: 3_000,
+            idMessage: "IN2",
+          },
+        ],
+      }),
+      [LID]: chat(LID, { title: "Иван" }),
+    };
+
+    expect(restoreChats({ chats })).toEqual(chats);
+  });
+
+  it.each([
+    ["a negative unread", { unread: -1 }],
+    ["a string unread", { unread: "1" }],
+    ["a number title", { title: 1 }],
+    [
+      "a reply without idMessage",
+      { messages: [{ id: "i", direction: "in", text: "Ок", time: 1 }] },
+    ],
+    [
+      "a reply with a number text",
+      {
+        messages: [
+          { id: "i", direction: "in", text: 1, time: 1, idMessage: "x" },
+        ],
+      },
+    ],
+    [
+      "a message in another direction",
+      {
+        messages: [
+          { id: "i", direction: "up", text: "Ок", time: 1, idMessage: "x" },
+        ],
+      },
+    ],
+  ])("gives no chats for %s", (_, patch) => {
+    expect(
+      restoreChats({ chats: { [RU]: { ...chat(RU), ...patch } } }),
+    ).toEqual({});
   });
 });
