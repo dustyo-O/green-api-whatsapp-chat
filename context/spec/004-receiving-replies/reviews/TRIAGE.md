@@ -45,3 +45,11 @@ Review 2's F1–F3 are fixed (`8933627`, `20c7301`, `0b13a37`); no findings on t
 | # | severity | verdict | rationale | applied in |
 |---|---|---|---|---|
 | F1 | major | accepted | `online` only fires when the browser itself goes offline; an upstream cut leaves a stalled poll for its 30 s budget, breaking §2.4's 10 s. Constants only: `receiveTimeout` 5 s (GREEN-API minimum), request budget 8 s, so stall + 1 s backoff + immediate answer fits in 10 s. Reply latency is unchanged (a long poll returns on arrival); about 0.2 rps vs a 100 rps limit. Stall-recovery test without `online`. | tasks.md Slice F3; tech §2.4 |
+
+## Code review 2026-10-07 — code-codex-20261007-0646.md (codex · effort low · PR #12 after Slice F3) — verdict: SHIP WITH FIXES
+
+Review 3's F1 is fixed (`b66b8dd`); this round re-raised the same 10 s promise for repeated failures and stalled deletes.
+
+| # | severity | verdict | rationale | applied in |
+|---|---|---|---|---|
+| F1 | major | accepted as a spec change (user decision b, 2026-10-07) | Second round in a row on the same deadline; per the harness "gate fails twice → ask" rule, the user chose to make the spec honest instead of tightening constants again. The 10 s holds for the device's own reconnect (`online` → immediate repoll, §2.4 c4's scenario); an upstream cut without `online` recovers within 20 s (worst case about 13–15 s). No code change. | functional §2.4; tech §2.4 |

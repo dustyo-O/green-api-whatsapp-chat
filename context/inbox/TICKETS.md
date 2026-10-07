@@ -156,3 +156,4 @@ Found while: verifying TKT-6
 Not a spec failure (functional §2.2 orders by latest message time; equal times are unspecified). Possible fix: break ties by arrival order.
 
 **Comments**
+- 2026-10-07 — PR #12: https://github.com/dustyo-O/green-api-whatsapp-chat/pull/12 → In Review → merged after 4 code-review rounds (6 fixes; the last round resolved by the user as a spec change). Real reply check parked on TKT-5.

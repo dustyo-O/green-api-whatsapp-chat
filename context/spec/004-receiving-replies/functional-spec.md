@@ -54,7 +54,7 @@ The brief ends with: "the recipient replies in the messenger; the user sees the 
 
 - With the app open in **one** browser tab, every reply appears **exactly once**, even across reloads and even if WhatsApp delivers the same reply to the app twice.
 - Replies that arrived while the app was closed (WhatsApp keeps them for up to 24 hours) appear after the user signs in or reloads, in their chats, with their original times: within 30 seconds for up to 20 waiting replies.
-- If the connection drops or GREEN-API asks the app to slow down, receiving keeps trying on its own (no message is shown yet; banners come in a later phase) and resumes by itself. Replies sent in the meantime appear within 10 seconds after the connection is back.
+- If the connection drops or GREEN-API asks the app to slow down, receiving keeps trying on its own (no message is shown yet; banners come in a later phase) and resumes by itself. Replies sent in the meantime appear within 10 seconds after the device's own connection comes back (the browser notices it and checks immediately). If the cut was further away (e.g. the router or the internet provider) and the device itself stayed connected, they appear within 20 seconds.
 - Something the app can't display, or a group message, never stops later replies from appearing.
 - After «Выйти», no more replies arrive in the app until the user signs in again.
   - **Acceptance Criteria:**
@@ -96,3 +96,4 @@ The brief ends with: "the recipient replies in the messenger; the user sees the 
 _Dated amendments made after the spec was first written — typically by `/awos:spec` in Update Mode when a bug fix changed documented behavior. Each entry records the date, the source reference (bug id or fix description), and what behavior changed and why. Leave empty until the first amendment._
 - 2026-10-06 — review `spec-codex` stage 2 — §2.1: 10 s measured on a normal connection over 5 replies; §2.2: list order and preview follow the latest message by time, hidden senders keep their own chats and can be replied to; §2.4: one tab, duplicate deliveries shown once, backlog ≤ 30 s for ≤ 20 replies, receiving recovers by itself after a dropped connection or slow-down.
 - 2026-10-06 — review `spec-codex` stage 3 — §2.2: new chats are placed by their latest message's time too; "at the top" applies to a fresh reply.
+- 2026-10-07 — code review round 4 (PR #12), user decision (b) — §2.4: the 10 s recovery holds when the device's own connection comes back; an upstream cut the device doesn't notice recovers within 20 s (the loop's worst case after repeated failures is about 13–15 s).
