@@ -80,7 +80,7 @@ Likely cause: GREEN-API rate limit (~1 req/s per method, 429 with empty body) �
 
 ## TKT-4 — Chats & sending
 
-- **type:** feature · **state:** In Progress · **created:** 2026-10-06
+- **type:** feature · **state:** Done · **created:** 2026-10-06
 - **roadmap:** Phase 1 → "Chats & Sending"
 
 **Description**
@@ -100,6 +100,7 @@ WhatsApp Web-style chat layout; start a chat by the recipient's phone number; se
   - Slice 5: Ship
 - 2026-10-06 — PR #10: https://github.com/dustyo-O/green-api-whatsapp-chat/pull/10 → In Review → merged after 3 code-review rounds (3 fixes, storage-failure point rejected each time).
 - 2026-10-06 — Stage 5 done: PR #10 merged (`6828df2`). Real delivery check (§2.5) **parked**: WhatsApp logged the instance out and now refuses re-linking → TKT-5.
+- 2026-10-07 — Stage 6 `/awos:verify 003`: 23/23 criteria verified (live `537be13`, screenshots `docs/screenshots/003-*.png`, look confirmed by the user; real delivery confirmed by the user) → spec + tech Completed, roadmap ticked → **Done**. Follow-up: TKT-9.
 
 ---
 
@@ -125,7 +126,7 @@ Impact: §2.5 of spec 003, the Receiving Replies real checks, and the demo all n
 
 ## TKT-6 — Receiving replies
 
-- **type:** feature · **state:** In Progress · **created:** 2026-10-06
+- **type:** feature · **state:** Done · **created:** 2026-10-06
 - **roadmap:** Phase 1 → "Receiving Replies"
 
 **Description**
@@ -142,6 +143,7 @@ Incoming text messages appear in the right chat within 10 seconds; a text from a
   - Slice 2: Replies in the UI
   - Slice 3: Feature Testing & Regression
   - Slice 4: Ship (real reply check waits on TKT-5)
+- 2026-10-07 — Stage 6 `/awos:verify 004`: 18/18 criteria verified (live `537be13`, a real FIFO queue stub; screenshots `docs/screenshots/004-*.png`, look confirmed by the user; real reply confirmed by the user) → spec + tech Completed, roadmap ticked → **Done**.
 
 ---
 
@@ -182,3 +184,20 @@ Connection-lost banner with auto-recovery (chats and the unsent draft kept, send
   - Slice 2: State watch and sending paused
   - Slice 3: Feature Testing & Regression
   - Slice 4: Ship
+
+---
+
+## TKT-9 — Make the "unknown status" mark visible
+
+- **type:** bug · **state:** Backlog · **created:** 2026-10-07 · **related:** TKT-4
+
+**Description**
+
+Matches; swap ❔ for ❓
+
+Context: spec 003 chats-sending, stage 6 verify · screenshot `docs/screenshots/003-unknown.png`
+Repro: a message whose send outcome is unknown shows ❔ (the white question mark) after its time; on the light-green bubble it's almost invisible.
+Found while: verifying TKT-4
+Spec conflict: functional-spec.md §2.3 (spec 003) says «**❔** with «Статус неизвестен · Повторить»»; the spec is amended to ❓ along with the fix (also spec 005 §2.6 mentions ❔).
+
+**Comments**

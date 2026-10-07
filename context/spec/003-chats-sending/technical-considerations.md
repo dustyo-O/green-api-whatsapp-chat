@@ -6,7 +6,7 @@ It is NOT a copy-paste implementation guide.
 # Technical Specification: Chats & Sending
 
 - **Functional Specification:** [functional-spec.md](functional-spec.md)
-- **Status:** Draft
+- **Status:** Completed
 - **Author(s):** Alexander Shleyko (lead) · `react-frontend` consult: [consults/](consults/) (`react-frontend-tech-chats-*.md`; GREEN-API docs and fake-credential probes, 2026-10-06)
 
 ---

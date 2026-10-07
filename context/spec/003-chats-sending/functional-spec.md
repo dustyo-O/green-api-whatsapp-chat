@@ -1,7 +1,7 @@
 # Functional Specification: Chats & Sending
 
 - **Roadmap Item:** Phase 1 → Chats & Sending (WhatsApp Web-style layout, new chat by phone number, sending text messages with status, chats saved across reloads)
-- **Status:** Draft
+- **Status:** Completed
 - **Author:** Alexander Shleyko
 - **Ticket:** TKT-4 · **Source:** `context/inbox/chats-sending.md` (grill decisions D1–D10)
 
@@ -35,23 +35,23 @@ The interface stays in Russian and as simple as WhatsApp Web.
 
   When the chat opens, the new-chat row closes. When no chat is created, the row stays open and the number stays in the field.
   - **Acceptance Criteria:**
-    - [ ] When the signed-in user clicks «+», then a row with the country picker set to 🇷🇺 Россия +7, an empty number field and «Начать чат» appears at the top of the chat list.
-    - [ ] Given Россия +7 is selected, when the user types `903 747-44-11` and clicks «Начать чат» for a number that uses WhatsApp, then a chat titled `+7 903 747-44-11` appears at the top of the list and opens.
-    - [ ] Given a number that doesn't use WhatsApp, when the user clicks «Начать чат», then they see «На этом номере нет WhatsApp», no chat appears, and the number is still in the field.
-    - [ ] Given Россия +7 is selected, when the user types `123` and clicks «Начать чат», then they see «Неверный номер. Проверьте код страны и номер.» and no chat appears.
-    - [ ] Given the WhatsApp check can't be completed, when the user clicks «Начать чат», then they see «Не удалось проверить номер. Попробуйте ещё раз.» and no chat appears.
-    - [ ] Given a chat with `+7 903 747-44-11` exists, when the user starts a chat with the same number again, then that existing chat opens and no second entry appears in the list.
-    - [ ] When the user picks «Другая страна», types `381` as the code and `629443720` as the number, and the number uses WhatsApp, then a chat titled `+381629443720` opens.
-    - [ ] When the user types letters into the number field, then «Начать чат» stays inactive.
-    - [ ] While the WhatsApp check is running, when the user tries to edit the number or click again, then nothing changes and the button reads «Проверяем…».
+    - [x] When the signed-in user clicks «+», then a row with the country picker set to 🇷🇺 Россия +7, an empty number field and «Начать чат» appears at the top of the chat list. _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed for fake instance `7103000001`): picker «🇷🇺 Россия +7», empty number, «Начать чат». See docs/screenshots/003-new-chat-row.png._
+    - [x] Given Россия +7 is selected, when the user types `903 747-44-11` and clicks «Начать чат» for a number that uses WhatsApp, then a chat titled `+7 903 747-44-11` appears at the top of the list and opens. _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed for fake instance `7103000001`): `903 747-44-11` → chat `+7 903 747-44-11` at the top and open, row closed. See docs/screenshots/003-chat-opened.png._
+    - [x] Given a number that doesn't use WhatsApp, when the user clicks «Начать чат», then they see «На этом номере нет WhatsApp», no chat appears, and the number is still in the field. _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed for fake instance `7103000001`): «На этом номере нет WhatsApp», 0 chats, number kept._
+    - [x] Given Россия +7 is selected, when the user types `123` and clicks «Начать чат», then they see «Неверный номер. Проверьте код страны и номер.» and no chat appears. _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed for fake instance `7103000001`, the real 400 body): `123` → «Неверный номер. Проверьте код страны и номер.», 0 chats._
+    - [x] Given the WhatsApp check can't be completed, when the user clicks «Начать чат», then they see «Не удалось проверить номер. Попробуйте ещё раз.» and no chat appears. _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed for fake instance `7103000001`): check answering 500 → «Не удалось проверить номер. Попробуйте ещё раз.», 0 chats. See docs/screenshots/003-check-failed.png._
+    - [x] Given a chat with `+7 903 747-44-11` exists, when the user starts a chat with the same number again, then that existing chat opens and no second entry appears in the list. _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed for fake instance `7103000001`): same number again → 0 new checks, no duplicate entry._
+    - [x] When the user picks «Другая страна», types `381` as the code and `629443720` as the number, and the number uses WhatsApp, then a chat titled `+381629443720` opens. _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed for fake instance `7103000001`): «Другая страна» + code `381` + `629443720` → `+381629443720` opens. See docs/screenshots/003-other-country.png._
+    - [x] When the user types letters into the number field, then «Начать чат» stays inactive. _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed for fake instance `7103000001`): `9a3` → «Начать чат» disabled._
+    - [x] While the WhatsApp check is running, when the user tries to edit the number or click again, then nothing changes and the button reads «Проверяем…». _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed for fake instance `7103000001`): during a slow check the field and button are disabled and the button reads «Проверяем…»._
 
 ### 2.2. Chat list
 
 - Each chat in the list shows the number, its last message cut to one line, and the time of that message. The newest activity is at the top. A new chat with no messages yet shows no preview and no time, and is placed by when it was created. Numbers starting with +7 are shown as `+7 903 747-44-11`; all other numbers are shown as `+` and the digits, e.g. `+381629443720`.
 - Clicking a chat opens it in the right area and highlights it in the list. With no chats yet, the list shows «Нет чатов. Нажмите «+», чтобы начать». While no chat is open, the right area shows «Выберите чат, чтобы начать переписку».
   - **Acceptance Criteria:**
-    - [ ] Given two chats, when the user sends a message in the one lower in the list, then that chat moves to the top and shows the message and its time.
-    - [ ] Given no chats, when the user looks at the left column, then they see «Нет чатов. Нажмите «+», чтобы начать».
+    - [x] Given two chats, when the user sends a message in the one lower in the list, then that chat moves to the top and shows the message and its time. _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed for fake instance `7103000001`): sending in the lowest chat moved it to the top with «Наверх» and `HH:MM`._
+    - [x] Given no chats, when the user looks at the left column, then they see «Нет чатов. Нажмите «+», чтобы начать». _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed for fake instance `7103000001`): fresh sign-in shows «Нет чатов. Нажмите «+», чтобы начать». See docs/screenshots/003-empty-list.png._
 
 ### 2.3. Conversation and sending
 
@@ -61,28 +61,28 @@ The interface stays in Russian and as simple as WhatsApp Web.
 - The message box grows with the text up to 6 lines; after that it scrolls inside.
 - The conversation scrolls to the newest message whenever the user sends one.
   - **Acceptance Criteria:**
-    - [ ] Given an open chat, when the user types «Привет» and presses Enter, then a right-hand bubble «Привет» appears with the current time and 🕓, which turns into ✅ once GREEN-API accepts it, and the box is empty again.
-    - [ ] Given GREEN-API refuses the message, when the user looks at the bubble, then it shows ❗ and «Не отправлено · Повторить», and when they click «Повторить» and sending succeeds, then the same bubble shows ✅.
-    - [ ] Given GREEN-API doesn't answer while sending, when the user looks at the bubble, then it shows ❔ «Статус неизвестен · Повторить», and when they click «Повторить», then they are asked «Сообщение могло уже уйти. Отправить ещё раз?» before anything is sent.
-    - [ ] When the user presses Shift+Enter between two lines and then Enter, then one bubble shows both lines.
-    - [ ] When the user presses Enter in an empty box, or one with only spaces, then nothing is sent.
-    - [ ] When the user types 10 lines, then the box stops growing at 6 lines and scrolls inside.
-    - [ ] When the user pastes a text longer than 20 000 characters, then the box keeps only the first 20 000.
+    - [x] Given an open chat, when the user types «Привет» and presses Enter, then a right-hand bubble «Привет» appears with the current time and 🕓, which turns into ✅ once GREEN-API accepts it, and the box is empty again. _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed for fake instance `7103000001`): «Привет» → 🕓 while sending, then ✅; box empty. See docs/screenshots/003-sent.png._
+    - [x] Given GREEN-API refuses the message, when the user looks at the bubble, then it shows ❗ and «Не отправлено · Повторить», and when they click «Повторить» and sending succeeds, then the same bubble shows ✅. _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed for fake instance `7103000001`): a 400 → ❗ «Не отправлено · Повторить» → «Повторить» → ✅ on the same bubble. See docs/screenshots/003-failed.png._
+    - [x] Given GREEN-API doesn't answer while sending, when the user looks at the bubble, then it shows ❔ «Статус неизвестен · Повторить», and when they click «Повторить», then they are asked «Сообщение могло уже уйти. Отправить ещё раз?» before anything is sent. _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed for fake instance `7103000001`): no answer → ❔ «Статус неизвестен · Повторить»; «Повторить» asks «Сообщение могло уже уйти. Отправить ещё раз?»; dismiss → 0 sends, accept → 1 send → ✅. See docs/screenshots/003-unknown.png (the ❔ is hard to see; follow-up TKT-9)._
+    - [x] When the user presses Shift+Enter between two lines and then Enter, then one bubble shows both lines. _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed for fake instance `7103000001`): Shift+Enter → one bubble with both lines._
+    - [x] When the user presses Enter in an empty box, or one with only spaces, then nothing is sent. _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed for fake instance `7103000001`): Enter on an empty box and on spaces → 0 sends._
+    - [x] When the user types 10 lines, then the box stops growing at 6 lines and scrolls inside. _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed for fake instance `7103000001`): box 42 px → 162 px at 6 lines, still 162 px at 10 lines, scrollHeight 258. See docs/screenshots/003-composer-6-lines.png._
+    - [x] When the user pastes a text longer than 20 000 characters, then the box keeps only the first 20 000. _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed for fake instance `7103000001`): inserting 20 500 characters keeps 20 000._
 
 ### 2.4. Chats kept across reloads
 
 - Chats and messages stay in this browser after a reload. A message that was still being sent when the page was closed shows ❔ «Статус неизвестен · Повторить» after the reload; it isn't resent by itself. Each chat keeps its unsent text in the message box when the user switches to another chat and after a reload. Logging out removes all chats, messages and unsent texts from this browser.
   - **Acceptance Criteria:**
-    - [ ] Given two chats with messages, when the user reloads the page, then both chats and all their messages are still there with their marks.
-    - [ ] Given a message still shows 🕓, when the page is reloaded, then that message shows ❔ and «Статус неизвестен · Повторить».
-    - [ ] Given the user typed «черновик» in chat A without sending, when they open chat B, come back to A and reload the page, then «черновик» is still in chat A's message box.
-    - [ ] Given chats exist, when the user clicks «Выйти» and signs in again, then the chat list shows «Нет чатов. Нажмите «+», чтобы начать».
+    - [x] Given two chats with messages, when the user reloads the page, then both chats and all their messages are still there with their marks. _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed for fake instance `7103000001`): after reload both chats and their ✅/❗ marks are still there. See docs/screenshots/003-after-reload.png._
+    - [x] Given a message still shows 🕓, when the page is reloaded, then that message shows ❔ and «Статус неизвестен · Повторить». _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed for fake instance `7103000001`): a message left on 🕓 shows ❔ «Статус неизвестен» after reload._
+    - [x] Given the user typed «черновик» in chat A without sending, when they open chat B, come back to A and reload the page, then «черновик» is still in chat A's message box. _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed for fake instance `7103000001`): «черновик» kept across a chat switch and a reload._
+    - [x] Given chats exist, when the user clicks «Выйти» and signs in again, then the chat list shows «Нет чатов. Нажмите «+», чтобы начать». _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed for fake instance `7103000001`): «Выйти» → sign in again → «Нет чатов. Нажмите «+», чтобы начать»._
 
 ### 2.5. Real WhatsApp delivery
 
 - A message sent from the app arrives in the recipient's WhatsApp.
   - **Acceptance Criteria:**
-    - [ ] Given a signed-in real instance, when the user starts a chat with their second WhatsApp number and sends «Привет», then the bubble shows ✅ and «Привет» arrives on that phone.
+    - [x] Given a signed-in real instance, when the user starts a chat with their second WhatsApp number and sends «Привет», then the bubble shows ✅ and «Привет» arrives on that phone. _Verified 2026-10-07 by the user on live `537be13` with the real instance: «Привет» → ✅ and it arrived on the main phone ("works like charm")._
 
 ---
 

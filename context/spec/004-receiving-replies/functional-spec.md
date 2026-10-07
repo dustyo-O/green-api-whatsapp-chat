@@ -1,7 +1,7 @@
 # Functional Specification: Receiving Replies
 
 - **Roadmap Item:** Phase 1 → Receiving Replies (incoming text messages in the right chat, new chat for unknown senders, reliable handling of everything else)
-- **Status:** Draft
+- **Status:** Completed
 - **Author:** Alexander Shleyko
 - **Ticket:** TKT-6 · **Source:** `context/inbox/receiving-replies.md` (grill decisions D1–D7)
 
@@ -23,9 +23,9 @@ The brief ends with: "the recipient replies in the messenger; the user sees the 
 - It's a bubble on the **left**: white (dark grey in dark mode), with the text and the time it was sent (`HH:MM`), and no status mark.
 - Messages in a chat are ordered by the time they were sent. If the chat is open, it scrolls to the new reply.
   - **Acceptance Criteria:**
-    - [ ] Given the chat with `+7 903 747-44-11` is open, when that contact replies «Привет-привет» on their phone, then within 10 seconds a white bubble «Привет-привет» with its time appears on the left, below the earlier messages.
-    - [ ] Given the user's own message «Привет» was sent at 10:00 and the contact's reply at 10:01, when the user looks at the chat, then «Привет» is above the reply.
-    - [ ] Given the chat is open and scrolled to the newest message, when a reply arrives, then the newest message stays in view.
+    - [x] Given the chat with `+7 903 747-44-11` is open, when that contact replies «Привет-привет» on their phone, then within 10 seconds a white bubble «Привет-привет» with its time appears on the left, below the earlier messages. _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed with a real FIFO notification queue for fake instance `7103000001`): «Привет-привет» appeared 0.1 s after being queued, as a white (`rgb(255,255,255)`) left bubble with its time, below «Привет». See docs/screenshots/004-reply-in-chat.png._
+    - [x] Given the user's own message «Привет» was sent at 10:00 and the contact's reply at 10:01, when the user looks at the chat, then «Привет» is above the reply. _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed with a real FIFO notification queue for fake instance `7103000001`): the user's «Привет» is above the later reply._
+    - [x] Given the chat is open and scrolled to the newest message, when a reply arrives, then the newest message stays in view. _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed with a real FIFO notification queue for fake instance `7103000001`): after 25 queued replies the list stays scrolled to the bottom (bottom 1554 = scrollHeight 1554)._
 
 ### 2.2. Replies in other chats and from new contacts
 
@@ -33,12 +33,12 @@ The brief ends with: "the recipient replies in the messenger; the user sees the 
 - When a reply comes from a number that has no chat yet, a new chat with that number appears, with the badge. Like every chat, it's placed by its latest message's time, so a fresh reply puts it at the top.
 - If WhatsApp doesn't reveal the sender's number, the chat is titled with the sender's WhatsApp name, or **«Неизвестный номер»** if there's no name. The reply is never dropped. Later replies from the same hidden sender land in that same chat; two different hidden senders get two separate chats even when both are titled «Неизвестный номер». The user can write back in such a chat like in any other.
   - **Acceptance Criteria:**
-    - [ ] Given chat A is open and chat B is lower in the list, when B's contact sends two replies, then B moves to the top showing the last reply and a green badge «2», and when the user opens B, then the badge disappears.
-    - [ ] When a number with no chat sends «Здравствуйте» now, then a new chat with that number appears at the top with «Здравствуйте» as its preview and the badge «1».
-    - [ ] Given a reply arrives without the sender's number but with the sender's WhatsApp name «Иван», when the user looks at the list, then a chat titled «Иван» shows the reply.
-    - [ ] Given a reply arrives without the sender's number and without a name, when the user looks at the list, then a chat titled «Неизвестный номер» shows the reply.
-    - [ ] Given two different senders without a number or name, when each sends a reply, then two separate «Неизвестный номер» chats appear, and when the first sender replies again, then it lands in the first of them.
-    - [ ] Given chat A's latest message is from 11:00 and chat B's from 10:00, when a reply to B that was sent at 09:00 is delivered late, then B gets the badge but stays below A and keeps its 10:00 preview.
+    - [x] Given chat A is open and chat B is lower in the list, when B's contact sends two replies, then B moves to the top showing the last reply and a green badge «2», and when the user opens B, then the badge disappears. _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed with a real FIFO notification queue for fake instance `7103000001`): two replies to the lower chat B → B at the top with «Два» and badge «2»; opening B clears the badge. See docs/screenshots/004-badge.png._
+    - [x] When a number with no chat sends «Здравствуйте» now, then a new chat with that number appears at the top with «Здравствуйте» as its preview and the badge «1». _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed with a real FIFO notification queue for fake instance `7103000001`): a new number's «Здравствуйте» → new chat at the top with badge «1». See docs/screenshots/004-new-number.png._
+    - [x] Given a reply arrives without the sender's number but with the sender's WhatsApp name «Иван», when the user looks at the list, then a chat titled «Иван» shows the reply. _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed with a real FIFO notification queue for fake instance `7103000001`): `@lid` reply with name «Иван» → a chat titled «Иван». See docs/screenshots/004-lid-chats.png._
+    - [x] Given a reply arrives without the sender's number and without a name, when the user looks at the list, then a chat titled «Неизвестный номер» shows the reply. _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed with a real FIFO notification queue for fake instance `7103000001`): `@lid` replies without a name → chats titled «Неизвестный номер»._
+    - [x] Given two different senders without a number or name, when each sends a reply, then two separate «Неизвестный номер» chats appear, and when the first sender replies again, then it lands in the first of them. _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed with a real FIFO notification queue for fake instance `7103000001`): two nameless `@lid` senders → two «Неизвестный номер» chats; the first sender's second reply landed in the first (badge «2»)._
+    - [x] Given chat A's latest message is from 11:00 and chat B's from 10:00, when a reply to B that was sent at 09:00 is delivered late, then B gets the badge but stays below A and keeps its 10:00 preview. _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed with a real FIFO notification queue for fake instance `7103000001`): with C at 11:00 and D at 10:00, a late D reply stamped 09:00 → D gets badge «2» but stays below C and keeps its «D в 10:00» preview._
 
 ### 2.3. Messages the app can't display
 
@@ -46,9 +46,9 @@ The brief ends with: "the recipient replies in the messenger; the user sees the 
 - Messages in group chats don't appear at all.
 - Messages typed on the instance account's own phone don't appear (only replies from contacts do).
   - **Acceptance Criteria:**
-    - [ ] Given the chat with a contact is open, when the contact sends a sticker, then a grey bubble «Сообщение этого типа пока не поддерживается» with its time appears on the left.
-    - [ ] When someone writes in a group the instance account is in, then no chat or bubble appears for it, and later replies from contacts still appear normally.
-    - [ ] When the instance account's owner types a message on their own phone, then it doesn't appear in the app.
+    - [x] Given the chat with a contact is open, when the contact sends a sticker, then a grey bubble «Сообщение этого типа пока не поддерживается» with its time appears on the left. _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed with a real FIFO notification queue for fake instance `7103000001`): a sticker → grey (`rgb(233,237,239)`) bubble «Сообщение этого типа пока не поддерживается» with its time; user confirmed the look. See docs/screenshots/004-sticker-placeholder.png._
+    - [x] When someone writes in a group the instance account is in, then no chat or bubble appears for it, and later replies from contacts still appear normally. _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed with a real FIFO notification queue for fake instance `7103000001`): a group message → no chat and no bubble (chats 8 → 8); the next contact reply «Текст» appeared 0.2 s later._
+    - [x] When the instance account's owner types a message on their own phone, then it doesn't appear in the app. _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed with a real FIFO notification queue for fake instance `7103000001`): an `outgoingMessageReceived` (typed on the instance phone) → not shown._
 
 ### 2.4. No reply is lost or shown twice
 
@@ -58,17 +58,17 @@ The brief ends with: "the recipient replies in the messenger; the user sees the 
 - Something the app can't display, or a group message, never stops later replies from appearing.
 - After «Выйти», no more replies arrive in the app until the user signs in again.
   - **Acceptance Criteria:**
-    - [ ] Given several replies have arrived, when the user reloads the page, then each reply is shown exactly once and in order.
-    - [ ] Given the app was closed while the contact sent «Ты тут?», when the user opens the app and signs in, then «Ты тут?» appears in that chat with the time it was sent.
-    - [ ] Given the same reply is delivered to the app twice, when the user looks at the chat, then it appears once.
-    - [ ] Given the internet connection is off for 30 seconds while the contact sends «Я тут», when the connection is back, then «Я тут» appears within 10 seconds, without a reload.
-    - [ ] Given a group message and a sticker arrived first, when the contact then sends «Текст», then «Текст» still appears within 10 seconds.
+    - [x] Given several replies have arrived, when the user reloads the page, then each reply is shown exactly once and in order. _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed with a real FIFO notification queue for fake instance `7103000001`): after reload the conversation is identical (32 bubbles, no duplicates)._
+    - [x] Given the app was closed while the contact sent «Ты тут?», when the user opens the app and signs in, then «Ты тут?» appears in that chat with the time it was sent. _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed with a real FIFO notification queue for fake instance `7103000001`): a reply queued while signed out («Ты тут?», sent 10 min earlier) appeared right after sign-in with its original time._
+    - [x] Given the same reply is delivered to the app twice, when the user looks at the chat, then it appears once. _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed with a real FIFO notification queue for fake instance `7103000001`): the same `idMessage` delivered twice → «Один раз» shown once._
+    - [x] Given the internet connection is off for 30 seconds while the contact sends «Я тут», when the connection is back, then «Я тут» appears within 10 seconds, without a reload. _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed with a real FIFO notification queue for fake instance `7103000001`, requests refused while offline): 30 s outage, «Я тут» not shown during it, then shown immediately after reconnect, no reload._
+    - [x] Given a group message and a sticker arrived first, when the contact then sends «Текст», then «Текст» still appears within 10 seconds. _Verified 2026-10-07 (live `537be13`, Chromium, GREEN-API stubbed with a real FIFO notification queue for fake instance `7103000001`): a group message and a sticker queued first, then «Текст» → it appeared 0.2 s later._
 
 ### 2.5. Real WhatsApp replies
 
 - A reply typed on a real phone reaches the app.
   - **Acceptance Criteria:**
-    - [ ] Given a signed-in real instance and a chat with the user's second WhatsApp number, when that phone replies «Привет-привет», then it appears in the chat within 10 seconds. _(Needs a linkable WhatsApp account, TKT-5.)_
+    - [x] Given a signed-in real instance and a chat with the user's second WhatsApp number, when that phone replies «Привет-привет», then it appears in the chat within 10 seconds. _(Needs a linkable WhatsApp account, TKT-5.)_ _Verified 2026-10-07 by the user on live `537be13` with the real instance: «Привет-привет» from the main phone appeared within 10 s ("works like charm")._
 
 ---
 
