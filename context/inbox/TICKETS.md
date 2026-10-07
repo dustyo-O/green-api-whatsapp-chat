@@ -184,6 +184,7 @@ Connection-lost banner with auto-recovery (chats and the unsent draft kept, send
   - Slice 2: State watch and sending paused
   - Slice 3: Feature Testing & Regression
   - Slice 4: Ship
+- 2026-10-07 — Shipped first (user: "let's ship, and after that test"): PR https://github.com/dustyo-O/green-api-whatsapp-chat/pull/16 — slices 1–2 + three Codex code-review fix slices (F1–F3), 485 tests. Next: Slice 3 Feature Testing in a follow-up PR, then `/awos:verify 005`.
 
 ---
 
