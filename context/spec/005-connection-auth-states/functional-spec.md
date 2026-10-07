@@ -13,7 +13,7 @@ While the user is signed in, things can go wrong that the chat screen currently 
 
 This feature makes each of these states visible with one clear banner. It pauses sending when a message couldn't go out anyway, and clears itself when things recover. Chats, messages and the unsent text are never lost.
 
-**Success looks like:** the user always knows why replies aren't arriving or why they can't send, and what to do about it. No message gets a misleading ✅ while the instance is logged out.
+**Success looks like:** the user always knows why replies aren't arriving or why they can't send, and what to do about it. No message is sent while a banner says sending is paused, so no new message gets a misleading ✅ while the instance is known to be logged out. (✅ always means "accepted by GREEN-API".)
 
 ---
 
@@ -33,19 +33,31 @@ This feature makes each of these states visible with one clear banner. It pauses
 
 ### 2.2. No connection
 
-- When the device goes offline, or when two attempts in a row to get new messages fail because the network can't be reached, the user sees **«Нет соединения. Переподключаемся…»** within 3 seconds.
+- The user sees **«Нет соединения. Переподключаемся…»**:
+  - within **3 seconds** when the device itself goes offline;
+  - within **20 seconds** when the device stays online but GREEN-API can't be reached (for example the router or the internet provider dropped).
+- Any failure the app can't tell apart from a lost connection counts as "no connection".
 - It disappears by itself as soon as the app reaches GREEN-API again. Replies sent in the meantime then appear (as in "Receiving Replies").
   - **Acceptance Criteria:**
     - [ ] Given the user is signed in, when the internet connection is turned off, then within 3 seconds they see «Нет соединения. Переподключаемся…».
+    - [ ] Given the device stays online but GREEN-API can't be reached, when 20 seconds pass, then «Нет соединения. Переподключаемся…» is shown.
     - [ ] Given the «Нет соединения» banner is shown, when the internet connection is turned back on, then the banner disappears within 10 seconds without a reload, and replies sent meanwhile appear.
 
 ### 2.3. Instance not authorized
 
-- When GREEN-API reports that the instance has been logged out of WhatsApp, the user sees a **red** banner **«Инстанс не авторизован. Отсканируйте QR-код в консоли GREEN-API.»** It disappears by itself when the instance is authorized again.
+- When the instance stops being authorized while the user is signed in, the user sees a **red** banner within **5 minutes at most** (usually much sooner). It uses the same texts as sign-in ("Sign-In & Session"):
+  - logged out: **«Инстанс не авторизован. Отсканируйте QR-код в консоли GREEN-API.»**
+  - phone offline: «Телефон с WhatsApp не в сети. Включите его и проверьте снова.»
+  - starting: «Инстанс запускается. Попробуйте через минуту.»
+  - blocked: «Инстанс заблокирован. Проверьте его в консоли GREEN-API.»
+  - temporarily restricted: «Работа инстанса временно ограничена. Проверьте его в консоли GREEN-API.»
+- It disappears by itself, again within 5 minutes at most, once the instance is authorized again.
 - The chats and messages stay visible. The user isn't signed out.
   - **Acceptance Criteria:**
     - [ ] Given the user is signed in, when GREEN-API reports the instance as logged out, then the red banner «Инстанс не авторизован. Отсканируйте QR-код в консоли GREEN-API.» appears and the chat list and messages stay as they were.
     - [ ] Given the red banner is shown, when GREEN-API reports the instance as authorized again, then the banner disappears without a reload.
+    - [ ] Given the user is signed in, when the instance becomes blocked, then the red banner reads «Инстанс заблокирован. Проверьте его в консоли GREEN-API.» and sending is paused.
+    - [ ] Given the instance is logged out in the console while the user is signed in and nothing else happens, when 5 minutes pass, then the red banner is shown.
 
 ### 2.4. Access key no longer works
 
@@ -55,9 +67,11 @@ This feature makes each of these states visible with one clear banner. It pauses
 
 ### 2.5. Receiving stuck
 
-- When getting new messages has kept failing for **1 minute** for a reason other than a lost connection or a bad access key, the user sees a **grey** banner **«Не удаётся получить новые сообщения. Пробуем снова…»**. It disappears as soon as receiving works again.
+- When getting new messages has kept failing for **1 minute** for a reason other than a lost connection or a bad access key, the user sees a **grey** banner **«Не удаётся получить новые сообщения. Пробуем снова…»**. This includes a new message that keeps being taken in but can't be cleared from GREEN-API's queue, which blocks the ones behind it.
+- "Receiving works" means a check came back with nothing new, or a new message was taken in **and** cleared from the queue. Only that resets the minute and hides the banner.
   - **Acceptance Criteria:**
     - [ ] Given GREEN-API keeps answering with an error for over a minute while the connection is fine, when the user looks at the screen, then they see the grey banner «Не удаётся получить новые сообщения. Пробуем снова…», and when GREEN-API answers normally again, then the banner disappears.
+    - [ ] Given new messages are taken in but can't be cleared from GREEN-API's queue for over a minute, when the user looks at the screen, then the grey banner is shown.
     - [ ] Given errors have lasted less than a minute, when the user looks at the screen, then no grey banner is shown.
 
 ### 2.6. Sending paused
@@ -66,7 +80,8 @@ This feature makes each of these states visible with one clear banner. It pauses
   - no connection: «Нет соединения — сообщение можно будет отправить позже»;
   - not authorized: «Инстанс не авторизован — отправка недоступна»;
   - access key: «Ключ доступа не действует — отправка недоступна».
-- Starting a new chat («Начать чат») is unavailable for the same reasons.
+- «Повторить» on a ❗ or ❔ message and starting a new chat («Начать чат») are unavailable for the same reasons.
+- A message that was already on its way when the banner appeared finishes as usual (its mark shows whatever GREEN-API answered).
 - Nothing is queued or resent automatically. When the banner clears, the user presses Enter to send what they typed.
 - The grey "receiving stuck" banner (§2.5) doesn't pause sending.
   - **Acceptance Criteria:**
@@ -74,6 +89,7 @@ This feature makes each of these states visible with one clear banner. It pauses
     - [ ] Given the «Инстанс не авторизован» banner is shown, when the user presses Enter in a chat, then no bubble appears.
     - [ ] Given the banner has just disappeared and «Привет» is still in the box, when the user presses Enter, then «Привет» is sent as usual.
     - [ ] Given the «Нет соединения» banner is shown, when the user opens «+» and tries «Начать чат», then no chat is created.
+    - [ ] Given a ❗ message and the «Инстанс не авторизован» banner, when the user clicks «Повторить», then nothing is sent and the message keeps ❗.
     - [ ] Given only the grey «Не удаётся получить новые сообщения…» banner is shown, when the user presses Enter with text in the box, then the message is sent as usual.
 
 ---
@@ -98,3 +114,4 @@ This feature makes each of these states visible with one clear banner. It pauses
 ## Change Log
 
 _Dated amendments made after the spec was first written — typically by `/awos:spec` in Update Mode when a bug fix changed documented behavior. Each entry records the date, the source reference (bug id or fix description), and what behavior changed and why. Leave empty until the first amendment._
+- 2026-10-07 — review `spec-codex` stage 2 — §1: ✅ guarantee narrowed to "no message sent while a pausing banner shows"; §2.2: 3 s for a device-offline event, 20 s for an unreachable service, ambiguous failures = no connection; §2.3: detection within 5 min, all non-authorized states with the sign-in texts; §2.5: "receiving works" defined (empty check, or taken in and cleared); §2.6: «Повторить» paused, in-flight sends finish.
