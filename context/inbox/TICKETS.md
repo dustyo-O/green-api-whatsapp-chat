@@ -157,3 +157,18 @@ Not a spec failure (functional §2.2 orders by latest message time; equal times 
 
 **Comments**
 - 2026-10-07 — PR #12: https://github.com/dustyo-O/green-api-whatsapp-chat/pull/12 → In Review → merged after 4 code-review rounds (6 fixes; the last round resolved by the user as a spec change). Real reply check parked on TKT-5.
+
+---
+
+## TKT-8 — Connection & authorization states
+
+- **type:** feature · **state:** In Progress · **created:** 2026-10-07
+- **roadmap:** Phase 2 → "Connection & Authorization States"
+
+**Description**
+
+Connection-lost banner with auto-recovery (chats and the unsent draft kept, sending paused, receiving resumes by itself); instance-lost-authorization handling (say so and point to the GREEN-API console).
+
+**Comments**
+
+- 2026-10-07 — `/harness:feature` started; stage 0 (grill) running. Carried in: the instance was logged out by WhatsApp while signed in and sends still showed ✅ (queued by GREEN-API for 24 h), spec 003 slice 5; `stateInstanceChanged` arrives in the receive queue (spec 004 slice 1 probe); a receive answer without `receiptId` can block receiving (spec 004 review 3 F4); a rotated token makes every call 401.
