@@ -117,6 +117,7 @@ Found while: verifying TKT-4
 Impact: §2.5 of spec 003, the Receiving Replies real checks, and the demo all need a working instance (likely a spare number). App behaviour is per spec; not a code defect.
 
 **Comments**
+- 2026-10-07 — user: "meantime instance is online. messages delivering to real wa account". Unblocks the parked real checks (spec 003 §2.5, spec 004 §2.5). → In Progress.
 
 ---
 
@@ -179,4 +180,3 @@ Connection-lost banner with auto-recovery (chats and the unsent draft kept, send
   - Slice 2: State watch and sending paused
   - Slice 3: Feature Testing & Regression
   - Slice 4: Ship
-- 2026-10-07 — user: "meantime instance is online. messages delivering to real wa account". Unblocks the parked real checks (spec 003 §2.5, spec 004 §2.5). → In Progress.
