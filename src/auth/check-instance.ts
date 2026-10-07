@@ -17,7 +17,7 @@ export type CheckError =
   | "incomingOff"
   | "unknown";
 
-function stateError(stateInstance: string): CheckError {
+export function stateError(stateInstance: string): CheckError {
   switch (stateInstance) {
     case "notAuthorized":
     case "sleepMode":

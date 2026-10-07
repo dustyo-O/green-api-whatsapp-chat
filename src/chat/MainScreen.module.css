@@ -66,6 +66,19 @@
   cursor: pointer;
 }
 
+/* The banner, then the intro or the conversation filling the rest. */
+.main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.main > :last-child {
+  flex: 1;
+  min-height: 0;
+}
+
 .intro {
   display: grid;
   min-width: 0;

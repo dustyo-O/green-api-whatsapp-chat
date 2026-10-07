@@ -88,3 +88,24 @@ export function toIncoming(body: unknown): Incoming | null {
     ...(name === undefined ? {} : { name }),
   };
 }
+
+// GREEN-API's `stateInstance` values (tech §2.1).
+const INSTANCE_STATES: readonly string[] = [
+  "notAuthorized",
+  "authorized",
+  "blocked",
+  "sleepMode",
+  "starting",
+  "yellowCard",
+  "suspended",
+];
+
+export const isInstanceState = (value: unknown): value is string =>
+  typeof value === "string" && INSTANCE_STATES.includes(value);
+
+/** The new instance state of a `stateInstanceChanged` notification, or `null`. Pure and total. */
+export function toStateChange(body: unknown): string | null {
+  if (field(body, "typeWebhook") !== "stateInstanceChanged") return null;
+  const state = field(body, "stateInstance");
+  return isInstanceState(state) ? state : null;
+}

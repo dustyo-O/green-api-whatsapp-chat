@@ -6,21 +6,27 @@ import {
   API_URL,
   deleted,
   failure,
+  hang,
   queue,
   received,
+  requests,
   server,
   setupGreenApiServer,
+  stateIs,
+  status as answer,
 } from "../test/green-api-server";
 import { storageKey, useChats } from "./chats-store";
 import {
   CONTACT,
   groupMessage,
   outgoingMessageReceived,
+  stateChanged,
   stickerMessage,
   textBody,
   textMessage,
 } from "./notification.fixtures";
 import { runReceiveLoop } from "./receive-loop";
+import { useStatus } from "./status-store";
 
 setupGreenApiServer();
 
@@ -74,7 +80,9 @@ beforeEach(() => {
 afterEach(async () => {
   for (const loop of loops.splice(0)) loop.abort();
   vi.useRealTimers();
+  vi.restoreAllMocks();
   await flush();
+  useStatus.getState().reset();
   useChats.getState().wipe();
   localStorage.clear();
 });
@@ -264,6 +272,7 @@ describe("runReceiveLoop", () => {
   // @regression — tech §2.4: 1 → 2 → 4 → 5 → 5 s on any failure, reset by a successful receive
   it("backs off 1, 2, 4, 5, 5 seconds, and starts over after a success", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    server.use(answer("getStateInstance", 401)); // asked after the receive 401
     queue(
       failure(500),
       HttpResponse.error(),
@@ -372,5 +381,502 @@ describe("runReceiveLoop", () => {
     const listener = add.mock.calls.find(([type]) => type === "online")?.[1];
     expect(listener).toBeDefined();
     expect(remove).toHaveBeenCalledWith("online", listener);
+  });
+});
+
+const status = () => {
+  const { keyInvalid, instanceState, noConnection, stuck } =
+    useStatus.getState();
+  return { keyInvalid, instanceState, noConnection, stuck };
+};
+
+/** Every condition on, as if each had been raised earlier in the session. */
+const allRaised = () => {
+  useStatus.setState({ keyInvalid: true, noConnection: true, stuck: true });
+};
+
+/** Advances fake time and lets MSW answer. */
+async function advance(ms: number) {
+  await vi.advanceTimersByTimeAsync(ms);
+  await flush();
+}
+
+/** Receive never answers until `release()`; then it falls through to the queue. */
+function stallReceive() {
+  let stalled = true;
+  server.use(
+    http.get("*/receiveNotification/*", async () => {
+      if (!stalled) return;
+      await delay("infinite");
+      return new HttpResponse(null);
+    }),
+  );
+  return () => {
+    stalled = false;
+  };
+}
+
+// @spec: 005-connection-auth-states — one case per row of tech §2.2
+describe("runReceiveLoop → status", () => {
+  // @regression — tech §2.2 row 1: an empty poll is reachable and works
+  it("clears no connection, the key and stuck on an empty poll", async () => {
+    allRaised();
+    queue(null);
+
+    start();
+
+    await vi.waitFor(() => {
+      expect(status()).toMatchObject({
+        keyInvalid: false,
+        noConnection: false,
+        stuck: false,
+      });
+    });
+  });
+
+  // @regression — tech §2.2 row 1, review F6: taken in but not cleared is reachable, not "works"
+  it("clears no connection and the key on a notification, but stuck only once it is deleted", async () => {
+    let answer = () => {};
+    const gate = new Promise<void>((resolve) => {
+      answer = resolve;
+    });
+    server.use(
+      http.delete("*/deleteNotification/*/*", async () => {
+        await gate; // then falls through to the queue's own DELETE
+      }),
+    );
+    allRaised();
+    queue({ receiptId: 1, body: textMessage });
+
+    start();
+
+    await vi.waitFor(() => {
+      expect(deleted).toEqual([1]);
+    });
+    expect(status()).toMatchObject({
+      keyInvalid: false,
+      noConnection: false,
+      stuck: true,
+    });
+    answer();
+    await vi.waitFor(() => {
+      expect(status().stuck).toBe(false);
+    });
+  });
+
+  // @regression — tech §2.1: the fast path for the auth banner, then deleted as before
+  it("sets the instance state from a stateInstanceChanged notification and deletes it", async () => {
+    queue(
+      { receiptId: 1, body: stateChanged("notAuthorized") },
+      { receiptId: 2, body: stateChanged("rebooting") },
+    );
+
+    start();
+
+    await vi.waitFor(() => {
+      expect(deleted).toEqual([1, 2]);
+    });
+    expect(status().instanceState).toBe("notAuthorized");
+    expect(Object.keys(useChats.getState().chats)).toEqual([]);
+
+    queue({ receiptId: 3, body: stateChanged("authorized") });
+    await vi.waitFor(() => {
+      expect(status().instanceState).toBe("authorized");
+    });
+  });
+
+  // @regression — tech §2.2 row 2, §3 risk 1: 401 and 403, confirmed by getStateInstance → the key
+  // banner, never the stuck clock
+  it.each([401, 403])(
+    "marks the key invalid on %i, without starting the stuck clock",
+    async (code) => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      server.use(
+        http.get("*/receiveNotification/*", () => failure(code)),
+        answer("getStateInstance", code),
+      );
+
+      start();
+      await flush();
+      expect(status().keyInvalid).toBe(true);
+      await advance(70_000);
+
+      expect(status()).toMatchObject({
+        keyInvalid: true,
+        noConnection: false,
+        stuck: false,
+      });
+    },
+  );
+
+  // @regression — tech §3 risk 1: a logged-out instance may refuse receive like a bad key
+  it("shows the instance state, not the key, when getStateInstance answers after a 401", async () => {
+    server.use(stateIs("notAuthorized"));
+    queue(failure(401));
+
+    start();
+
+    await vi.waitFor(() => {
+      expect(status().instanceState).toBe("notAuthorized");
+    });
+    expect(status().keyInvalid).toBe(false);
+    expect(requests).toEqual(["getStateInstance"]);
+  });
+
+  // @regression — tech §3 risk 1: a failed check keeps the conditions; the next cycle asks again
+  it("keeps the conditions when the check after a 401 fails, and asks again on the next 401", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    server.use(answer("getStateInstance", 500));
+    queue(failure(401), failure(401));
+
+    start();
+    await flush();
+    expect(requests).toEqual(["getStateInstance"]);
+    expect(status()).toMatchObject({
+      keyInvalid: false,
+      instanceState: "authorized",
+      stuck: false,
+    });
+
+    server.use(answer("getStateInstance", 401));
+    await advance(1_000);
+
+    expect(requests).toEqual(["getStateInstance", "getStateInstance"]);
+    expect(status().keyInvalid).toBe(true);
+  });
+
+  // @regression — tech Round 2: a network failure is «Нет соединения» only after 15 s without an
+  // answer, and a 500 is an answer
+  it("shows no connection once nothing has answered for 15 s and the latest failure is a network one", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    queue(
+      HttpResponse.error(),
+      failure(500),
+      HttpResponse.error(),
+      HttpResponse.error(),
+      HttpResponse.error(),
+    );
+
+    start();
+    await flush();
+    expect(status().noConnection).toBe(false);
+    await advance(1_000); // the 500 at 1 s restarts the 15 s
+    await advance(14_999);
+    expect(received).toHaveLength(5);
+    expect(status().noConnection).toBe(false);
+
+    await advance(1);
+    expect(status().noConnection).toBe(true);
+  });
+
+  // @regression — tech §2.2 row 3, functional §2.2 c2: a stalled upstream → banner within 20 s
+  it("counts a stalled poll's budget as a network failure: no connection after 15 s", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    stallReceive();
+
+    start();
+    await advance(14_999);
+    expect(status().noConnection).toBe(false);
+    await advance(1);
+
+    expect(status().noConnection).toBe(true);
+    await advance(70_000);
+    expect(status().stuck).toBe(false); // network failures never start the stuck clock
+  });
+
+  // @regression — tech Round 2 (pr #16): counting failures took 26 s once the backoff was at 5 s
+  it("shows no connection within 20 s when an outage starts during the capped backoff", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    let answers = 5; // 503 at 0, 1, 3, 7 and 12 s; the next backoff is 5 s
+    server.use(
+      http.get("*/receiveNotification/*", async () => {
+        if (answers-- > 0) return failure(503);
+        await delay("infinite");
+        return new HttpResponse(null);
+      }),
+    );
+
+    start();
+    await advance(12_000);
+    expect(received).toHaveLength(5);
+    expect(status().noConnection).toBe(false);
+    await advance(20_000);
+
+    expect(status().noConnection).toBe(true);
+  });
+
+  // @regression — tech Round 2 (pr #16): a stalled tie-break check held the loop for its 15 s budget
+  it("shows no connection within 20 s when an outage starts during the check after a 401", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    let refused = false;
+    server.use(
+      http.get("*/receiveNotification/*", async () => {
+        if (!refused) {
+          refused = true;
+          return failure(401);
+        }
+        await delay("infinite");
+        return new HttpResponse(null);
+      }),
+      hang("getStateInstance"),
+    );
+
+    start();
+    await flush();
+    expect(requests).toEqual(["getStateInstance"]);
+    await advance(20_000);
+
+    expect(status().noConnection).toBe(true);
+  });
+
+  // @regression — tech Round 3 (pr #16): a stalled tie-break held the loop for 15 s, so recovery
+  // with no `online` event took about 25 s
+  it("recovers within 20 s when GREEN-API comes back during a stalled check after a 401", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    let n = 0;
+    server.use(
+      http.get("*/receiveNotification/*", async () => {
+        n++;
+        if (n <= 4) return HttpResponse.error(); // at 0, 1, 3 and 7 s; the backoff is now 5 s
+        if (n === 5) return failure(401); // at 12 s; its check stalls
+        await delay(5_000); // back: a long poll that takes its full 5 s
+        // falls through to the queue
+      }),
+      hang("getStateInstance"),
+    );
+    queue({ receiptId: 1, body: textMessage });
+
+    start();
+    await flush();
+    for (const ms of [1_000, 2_000, 4_000, 5_000]) await advance(ms);
+    expect(received).toHaveLength(5);
+    expect(requests).toEqual(["getStateInstance"]);
+    // GREEN-API is back now; small steps let each request go out on time.
+    for (let t = 0; t < 20_000; t += 500) await advance(500);
+
+    expect(status().noConnection).toBe(false);
+    expect(texts()).toEqual(["Привет-привет"]);
+    expect(deleted).toEqual([1]);
+  });
+
+  // @regression — tech §2.2 row 4, risk 5: an `online` wake must not flash «Нет соединения»
+  it("polls again at once, without counting a failure, when woken by online", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    stallReceive();
+
+    start();
+    await flush();
+    for (let i = 0; i < 3; i++) {
+      window.dispatchEvent(new Event("online"));
+      await flush();
+    }
+
+    expect(received).toHaveLength(4); // no backoff between them
+    expect(status().noConnection).toBe(false);
+  });
+
+  // @regression — tech §2.2 row 5: 429, 5xx, badBody → the grey banner after 60 s, not before
+  it("shows stuck after a minute of 429, 5xx and bad bodies, and clears it on an empty poll", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    let failing = true;
+    let n = 0;
+    const answers = [
+      () => failure(429),
+      () => failure(500),
+      () => failure(503),
+      () => HttpResponse.json({ body: {} }),
+    ];
+    server.use(
+      http.get("*/receiveNotification/*", () =>
+        failing ? answers[n++ % answers.length]() : undefined,
+      ),
+    );
+
+    start();
+    await advance(59_000);
+    expect(status().stuck).toBe(false);
+    await advance(1_000);
+    expect(status()).toMatchObject({
+      keyInvalid: false,
+      noConnection: false,
+      stuck: true,
+    });
+
+    failing = false;
+    queue(null);
+    await advance(5_000);
+    expect(status().stuck).toBe(false);
+  });
+
+  // @regression — tech §2.2 row 5, functional §2.5 c2: a head that can't be deleted blocks the queue
+  it("shows stuck when a received reply can't be deleted for a minute", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    server.use(http.delete("*/deleteNotification/*/*", () => failure(503)));
+    queue({ receiptId: 1, body: textMessage });
+
+    start();
+    await advance(59_000);
+    expect(status().stuck).toBe(false);
+    await advance(1_000);
+
+    expect(status().stuck).toBe(true);
+    expect(texts()).toEqual(["Привет-привет"]);
+  });
+
+  // @regression — code review F1 (pr #16): receives get through, deletes don't → stuck, not offline
+  it("shows stuck, not no connection, when every receive works but its delete fails on the network", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    server.use(
+      http.delete("*/deleteNotification/*/*", () => HttpResponse.error()),
+    );
+    queue({ receiptId: 1, body: textMessage });
+
+    start();
+    await flush();
+    expect(deleted).toEqual([1]);
+    await advance(59_000);
+    expect(status().stuck).toBe(false);
+    await advance(1_000);
+
+    expect(deleted.length).toBeGreaterThan(2);
+    expect(status()).toMatchObject({ noConnection: false, stuck: true });
+  });
+
+  // @regression — code review F2 (pr #16): a stalled delete, then a stalled receive → within 20 s
+  it("shows no connection within 20 s when an outage starts during a delete", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    let outage = false;
+    server.use(
+      http.get("*/receiveNotification/*", async () => {
+        if (!outage) return; // falls through to the queue
+        await delay("infinite");
+        return new HttpResponse(null);
+      }),
+      http.delete("*/deleteNotification/*/*", async () => {
+        outage = true;
+        await delay("infinite");
+        return new HttpResponse(null);
+      }),
+    );
+    queue({ receiptId: 1, body: textMessage });
+
+    start();
+    await flush();
+    expect(deleted).toEqual([1]);
+    await advance(20_000);
+
+    expect(status().noConnection).toBe(true);
+  });
+
+  // @regression — code review F3 (pr #16): receive refused, key and instance fine → stuck
+  it("shows stuck, not the key, when receive keeps answering 401 but the instance is authorized", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    server.use(
+      http.get("*/receiveNotification/*", () => failure(401)),
+      stateIs("authorized"),
+    );
+
+    start();
+    await flush();
+    expect(requests).toEqual(["getStateInstance"]);
+    await advance(59_000);
+    expect(status().stuck).toBe(false);
+    await advance(1_000);
+
+    expect(status()).toMatchObject({
+      keyInvalid: false,
+      instanceState: "authorized",
+      stuck: true,
+    });
+  });
+
+  // @regression — tech Round 2 (pr #16): receive refused and the check fails → stuck, not silence
+  it("shows stuck when receive keeps answering 401 and the check after it keeps failing", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    server.use(
+      http.get("*/receiveNotification/*", () => failure(401)),
+      answer("getStateInstance", 500),
+    );
+
+    start();
+    await flush();
+    expect(requests).toEqual(["getStateInstance"]);
+    await advance(59_000);
+    expect(status().stuck).toBe(false);
+    await advance(1_000);
+
+    expect(status()).toMatchObject({
+      keyInvalid: false,
+      instanceState: "authorized",
+      noConnection: false,
+      stuck: true,
+    });
+  });
+
+  // @regression — tech §2.2 row 5: a save that throws feeds the stuck clock too
+  it("starts the stuck clock when saving a reply throws", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("full", "QuotaExceededError");
+    });
+    queue({ receiptId: 1, body: textMessage });
+
+    start();
+    await advance(60_000);
+
+    expect(status().stuck).toBe(true);
+    expect(deleted).toEqual([]);
+  });
+
+  // @regression — tech §2.2: the device's own events and state
+  it("shows no connection at once on offline, and at start when the device is offline", async () => {
+    stallReceive();
+    start();
+    await flush();
+
+    window.dispatchEvent(new Event("offline"));
+    expect(status().noConnection).toBe(true);
+    window.dispatchEvent(new Event("online"));
+    await flush();
+    expect(status().noConnection).toBe(true); // only an answer clears it
+
+    for (const loop of loops.splice(0)) loop.abort();
+    useStatus.getState().reset();
+    vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    start();
+    expect(status().noConnection).toBe(true);
+  });
+
+  // @regression — tech §2.2: no writes once the session is over
+  it("writes nothing after it stops: neither a pending stuck timer nor a late answer", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    server.use(http.get("*/receiveNotification/*", () => failure(500)));
+    const first = start();
+    await advance(30_000);
+    first.controller.abort();
+    await first.done;
+    await advance(60_000);
+    expect(status().stuck).toBe(false);
+
+    let answer = () => {};
+    const gate = new Promise<void>((resolve) => {
+      answer = resolve;
+    });
+    server.use(
+      http.get("*/receiveNotification/*", async () => {
+        await gate;
+        return failure(401);
+      }),
+    );
+    const second = start();
+    await flush();
+    useChats.getState().wipe(); // logout
+    window.dispatchEvent(new Event("offline"));
+    answer();
+    await advance(10_000);
+
+    expect(status()).toMatchObject({ keyInvalid: false, noConnection: false });
+    second.controller.abort();
+    await second.done;
   });
 });

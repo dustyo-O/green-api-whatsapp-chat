@@ -118,6 +118,8 @@ Found while: verifying TKT-4
 Impact: §2.5 of spec 003, the Receiving Replies real checks, and the demo all need a working instance (likely a spare number). App behaviour is per spec; not a code defect.
 
 **Comments**
+- 2026-10-07 — user: "meantime instance is online. messages delivering to real wa account". Unblocks the parked real checks (spec 003 §2.5, spec 004 §2.5). → In Progress.
+- 2026-10-07 — user: «Тест 2» (✅, queued by GREEN-API while the instance was logged out) **never arrived** after re-authorization; the instance was re-linked with the **same number**. So a ✅ during a logout can be silently lost (24 h queue limit and/or cleared on re-auth): spec 005's send pause while not authorized prevents it; README must say ✅ = accepted by GREEN-API, not delivered.
 - 2026-10-07 — real checks done on live `537be13`: send → ✅ → arrived; reply → left bubble within 10 s; sticker → placeholder. Spec 003 §2.5 and spec 004 §2.5 unparked → **Done**.
 
 ---
@@ -163,6 +165,29 @@ Not a spec failure (functional §2.2 orders by latest message time; equal times 
 
 ---
 
+## TKT-8 — Connection & authorization states
+
+- **type:** feature · **state:** In Progress · **created:** 2026-10-07
+- **roadmap:** Phase 2 → "Connection & Authorization States"
+
+**Description**
+
+Connection-lost banner with auto-recovery (chats and the unsent draft kept, sending paused, receiving resumes by itself); instance-lost-authorization handling (say so and point to the GREEN-API console).
+
+**Comments**
+
+- 2026-10-07 — `/harness:feature` started; stage 0 (grill) running. Carried in: the instance was logged out by WhatsApp while signed in and sends still showed ✅ (queued by GREEN-API for 24 h), spec 003 slice 5; `stateInstanceChanged` arrives in the receive queue (spec 004 slice 1 probe); a receive answer without `receiptId` can block receiving (spec 004 review 3 F4); a rotated token makes every call 401.
+- 2026-10-07 — grill done → `context/inbox/connection-auth-states.md` (all recommended). D1 offline banner (browser offline or 2 network failures) · D2 sending paused, draft kept · D3 logged-out red banner from the queue notification (+5 min fallback if needed) · D4 token-invalid banner with «Выйти» · D5 grey "receiving stuck" after 1 min · D6 one banner by priority.
+- 2026-10-07 — Spec: `context/spec/005-connection-auth-states/functional-spec.md` → In Progress.
+- 2026-10-07 — Stage 3 done (tech + 2 codex reviews triaged, tasks reviewed). Plan:
+  - Slice 1: Status store, response mapping and the banner (+ the user's logged-out / wrong-key probe)
+  - Slice 2: State watch and sending paused
+  - Slice 3: Feature Testing & Regression
+  - Slice 4: Ship
+- 2026-10-07 — Shipped first (user: "let's ship, and after that test"): PR https://github.com/dustyo-O/green-api-whatsapp-chat/pull/16 — slices 1–2 + three Codex code-review fix slices (F1–F3), 485 tests. Next: Slice 3 Feature Testing in a follow-up PR, then `/awos:verify 005`.
+
+---
+
 ## TKT-9 — Make the "unknown status" mark visible
 
 - **type:** bug · **state:** Backlog · **created:** 2026-10-07 · **related:** TKT-4
@@ -177,4 +202,3 @@ Found while: verifying TKT-4
 Spec conflict: functional-spec.md §2.3 (spec 003) says «**❔** with «Статус неизвестен · Повторить»»; the spec is amended to ❓ along with the fix (also spec 005 §2.6 mentions ❔).
 
 **Comments**
-

@@ -3,6 +3,7 @@ import { useSession } from "../auth/session-store";
 import { useChats } from "./chats-store";
 import { checkNumber, type CheckOutcome } from "./outcomes";
 import { COUNTRIES, isValidCode, isValidNumber, toChatId } from "./phone";
+import { pausedBy, useStatus } from "./status-store";
 import styles from "./NewChatForm.module.css";
 
 type CheckError = Exclude<CheckOutcome, "exists">;
@@ -24,6 +25,8 @@ export function NewChatForm({ onDone }: NewChatFormProps) {
   const [number, setNumber] = useState("");
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState<CheckError | null>(null);
+  // No new chat while sending is paused (spec 005 functional §2.6).
+  const paused = useStatus((s) => pausedBy(s) !== null);
   // Cleared when the row closes: a check still running then belongs to no form.
   const active = useRef(true);
   useEffect(() => {
@@ -58,6 +61,8 @@ export function NewChatForm({ onDone }: NewChatFormProps) {
     // while checking: this answer is stale.
     if (!active.current || useChats.getState().session !== session) return;
     setChecking(false);
+    // Paused while checking: no chat, and the number stays for later (review 3 F4).
+    if (pausedBy(useStatus.getState()) !== null) return;
     if (outcome === "exists") {
       useChats.getState().addChat(chatId);
       onDone();
@@ -68,7 +73,7 @@ export function NewChatForm({ onDone }: NewChatFormProps) {
 
   function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (checking || !submittable) return;
+    if (checking || !submittable || paused) return;
     void start();
   }
 
@@ -120,7 +125,7 @@ export function NewChatForm({ onDone }: NewChatFormProps) {
           <button
             type="submit"
             className={styles.submit}
-            disabled={checking || !submittable}
+            disabled={checking || !submittable || paused}
             aria-busy={checking}
           >
             {checking ? "Проверяем…" : "Начать чат"}

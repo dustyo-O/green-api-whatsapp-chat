@@ -21,6 +21,7 @@ import {
   type Message,
 } from "./chats-store";
 import type { Incoming } from "./notification";
+import { useStatus } from "./status-store";
 
 setupGreenApiServer();
 
@@ -61,6 +62,7 @@ const saved = (idInstance: string) => {
 };
 
 afterEach(() => {
+  useStatus.getState().reset();
   useChats.getState().wipe();
   localStorage.clear();
   vi.restoreAllMocks();
@@ -316,6 +318,47 @@ describe("useChats", () => {
       status: "sent",
       idMessage: "BAE6",
     });
+  });
+});
+
+// @spec: 005-connection-auth-states — tech §2.4: the guard lives in the store
+describe("sending paused", () => {
+  // @regression — functional §2.6 c1, c2, c5: no bubble, the draft stays, ❗ stays ❗
+  it.each([
+    ["offline", { noConnection: true }],
+    ["auth", { instanceState: "notAuthorized" }],
+    ["key", { keyInvalid: true }],
+  ])("send and retry change nothing while paused by %s", async (_, raised) => {
+    server.use(sentAs("BAE6"));
+    const failed = message({
+      id: "no",
+      status: "failed",
+      idMessage: undefined,
+    });
+    save(A, { [RU]: chat(RU, { messages: [failed], draft: "Привет" }) });
+    useChats.getState().open(A);
+    useStatus.setState(raised);
+    const before = useChats.getState().chats;
+
+    await useChats.getState().send(CREDS, RU, "Привет");
+    await useChats.getState().retry(CREDS, RU, "no");
+
+    expect(useChats.getState().chats).toBe(before);
+    expect(requests).toEqual([]);
+  });
+
+  // @regression — functional §2.6 c6: the grey banner doesn't pause sending
+  it("sends as usual while only stuck", async () => {
+    server.use(sentAs("BAE6"));
+    useChats.getState().open(A);
+    useChats.getState().addChat(RU);
+    useStatus.setState({ stuck: true });
+
+    await useChats.getState().send(CREDS, RU, "Привет");
+
+    expect(useChats.getState().chats[RU].messages).toMatchObject([
+      { text: "Привет", status: "sent", idMessage: "BAE6" },
+    ]);
   });
 });
 
